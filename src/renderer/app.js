@@ -259,12 +259,82 @@ export async function renderHistory(entriesOrTaskId) {
   );
 }
 
+function currentMonthFilter(taskId) {
+  const now = new Date();
+  return {
+    taskId,
+    from: dateString(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: dateString(now)
+  };
+}
+
+function createTaskFilter(tasks, filter, dataForm) {
+  const form = document.createElement('form');
+  form.className = 'session-form';
+  form.dataset.form = dataForm;
+  const select = document.createElement('select');
+  select.name = 'taskId';
+  for (const task of tasks) {
+    const option = document.createElement('option');
+    option.value = String(task.id); option.textContent = task.title;
+    option.selected = task.id === filter.taskId;
+    select.append(option);
+  }
+  labeledControl(form, 'Tarefa', select);
+  if (dataForm === 'progress-filter') {
+    for (const [name, label, value] of [['from', 'De', filter.from], ['to', 'Até', filter.to]]) {
+      const input = document.createElement('input'); input.name = name; input.type = 'date'; input.value = value;
+      labeledControl(form, label, input);
+    }
+  }
+  const submit = document.createElement('button'); submit.type = 'submit'; submit.textContent = 'Aplicar filtro'; form.append(submit);
+  return form;
+}
+
+export async function renderProgressPanel(tasks, suppliedReport, suppliedFilter) {
+  const availableTasks = tasks ?? await window.taskApi.tasks.list();
+  if (!availableTasks.length) {
+    appRoot().replaceChildren(heading('Progresso', 'Tempo real investido no período escolhido.'), message('Crie uma tarefa na aba Minha semana para acompanhar o progresso.'));
+    return;
+  }
+  const filter = suppliedFilter ?? currentMonthFilter(availableTasks[0].id);
+  const report = suppliedReport ?? await window.taskApi.reports.progress(filter);
+  await renderProgress(report);
+  const form = createTaskFilter(availableTasks, filter, 'progress-filter');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await renderProgressPanel(availableTasks, undefined, {
+      taskId: Number(form.elements.taskId.value),
+      from: form.elements.from.value,
+      to: form.elements.to.value
+    });
+  });
+  appRoot().prepend(form);
+}
+
+export async function renderHistoryPanel(tasks, suppliedEntries, suppliedTaskId) {
+  const availableTasks = tasks ?? await window.taskApi.tasks.list();
+  if (!availableTasks.length) {
+    appRoot().replaceChildren(heading('Histórico', 'Continue exatamente de onde parou.'), message('Crie uma tarefa para começar seu histórico.'));
+    return;
+  }
+  const taskId = suppliedTaskId ?? availableTasks[0].id;
+  const entries = suppliedEntries ?? await window.taskApi.sessions.listHistory(taskId);
+  await renderHistory(entries);
+  const form = createTaskFilter(availableTasks, { taskId }, 'history-filter');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await renderHistoryPanel(availableTasks, undefined, Number(form.elements.taskId.value));
+  });
+  appRoot().prepend(form);
+}
+
 async function selectTab(tab) {
   document.querySelectorAll('[data-tab]').forEach((button) => button.setAttribute('aria-current', button.dataset.tab === tab ? 'page' : 'false'));
   if (tab === 'week') return renderWeek();
   if (tab === 'today') return renderToday();
-  if (tab === 'progress') return renderProgress({ realMinutes: 0, activeDays: 0, sessions: 0, subtasks: [] });
-  return renderHistory([]);
+  if (tab === 'progress') return renderProgressPanel();
+  return renderHistoryPanel();
 }
 
 function initialize() {

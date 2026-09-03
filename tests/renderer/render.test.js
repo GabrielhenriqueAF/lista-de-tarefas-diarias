@@ -5,13 +5,23 @@ let renderToday;
 let renderProgress;
 let renderHistory;
 let renderWeek;
+let renderProgressPanel;
 
 beforeEach(async () => {
   document.body.innerHTML = '<main id="app"></main>';
-  ({ renderToday, renderProgress, renderHistory, renderWeek } = await import('../../src/renderer/app.js'));
+  ({ renderToday, renderProgress, renderHistory, renderWeek, renderProgressPanel } = await import('../../src/renderer/app.js'));
 });
 
 describe('progress and history views', () => {
+  it('renders a task and period filter before the metrics', async () => {
+    await renderProgressPanel(
+      [{ id: 1, title: 'Estudar inglês' }],
+      { realMinutes: 120, activeDays: 1, sessions: 1, subtasks: [] }
+    );
+
+    expect(document.querySelector('[data-form="progress-filter"]')).not.toBeNull();
+  });
+
   it('renders real monthly hours and active days', async () => {
     await renderProgress({ realMinutes: 1120, activeDays: 8, subtasks: [] });
 
