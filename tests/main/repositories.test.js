@@ -107,6 +107,24 @@ describe('recurrence rules and Blocks', () => {
 
     database.close();
   });
+
+  it('queues a changed rule and stores its Google event link', async () => {
+    const { createActivityRepository } = await import('../../src/main/activity-repository.js');
+    const { createRoutineRepository } = await import('../../src/main/routine-repository.js');
+    const { createSyncRepository } = await import('../../src/main/sync-repository.js');
+    const database = createDatabase(':memory:');
+    const activities = createActivityRepository(database);
+    const queue = createSyncRepository(database);
+    const rules = createRoutineRepository(database, { syncQueue: queue });
+    const english = activities.create({ name: 'Inglês', category: 'Estudo', color: '#2563eb' });
+    const rule = rules.create({ activityId: english.id, title: 'Inglês', weekdays: [2], startTime: '05:00', endTime: '08:00' });
+
+    expect(queue.pending()).toMatchObject([{ operation: 'upsert-rule', payload: { id: rule.id } }]);
+    rules.setGoogleEventId(rule.id, 'google-rule-8');
+    expect(rules.get(rule.id)).toMatchObject({ googleEventId: 'google-rule-8', active: true });
+
+    database.close();
+  });
 });
 
 describe('Block execution', () => {

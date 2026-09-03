@@ -5,6 +5,7 @@ let applyTheme;
 let renderWeekView;
 let renderTodayView;
 let renderHistoryView;
+let renderSettingsView;
 
 beforeEach(async () => {
   document.documentElement.removeAttribute('data-theme');
@@ -13,6 +14,7 @@ beforeEach(async () => {
   ({ renderWeekView } = await import('../../src/renderer/views/week-view.js'));
   ({ renderTodayView } = await import('../../src/renderer/views/today-view.js'));
   ({ renderHistoryView } = await import('../../src/renderer/views/history-view.js'));
+  ({ renderSettingsView } = await import('../../src/renderer/views/settings-view.js'));
 });
 
 describe('routine renderer', () => {
@@ -73,5 +75,18 @@ describe('routine renderer', () => {
     document.querySelector('form[data-form="track-item"]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     expect(created).toEqual([{ position: 1, title: 'Capítulo 2' }]);
+  });
+
+  it('renders a Google sync button and Rotina Gabriel state', () => {
+    renderSettingsView(document.querySelector('#app'), {
+      calendarName: 'Rotina Gabriel',
+      lastSyncedAt: '2026-09-03T12:00:00Z',
+      connected: true,
+      configured: true,
+      theme: 'dark'
+    });
+
+    expect(document.querySelector('[data-action="sync-google"]')).not.toBeNull();
+    expect(document.body.textContent).toContain('Rotina Gabriel');
   });
 });

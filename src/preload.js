@@ -38,5 +38,10 @@ contextBridge.exposeInMainWorld('routineApi', {
   settings: {
     getTheme: () => invoke('settings:get-theme'),
     setTheme: (theme) => invoke('settings:set-theme', theme)
+  },
+  google: {
+    connect: () => invoke('google:connect'),
+    status: () => invoke('google:status'),
+    syncNow: () => invoke('google:sync-now')
   }
 });

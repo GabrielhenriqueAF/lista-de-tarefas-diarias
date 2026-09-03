@@ -270,7 +270,24 @@ async function renderHistory() {
 }
 
 async function renderSettings() {
-  renderSettingsView(document.querySelector('#app'), { theme: state.theme });
+  const googleState = await applicationApi().google.status();
+  renderSettingsView(document.querySelector('#app'), {
+    theme: state.theme,
+    calendarName: googleState.calendarName,
+    lastSyncedAt: googleState.lastSyncedAt,
+    configured: googleState.configured,
+    connected: googleState.connected,
+    onConnect: async () => {
+      await applicationApi().google.connect();
+      setStatus('Conta Google conectada. Agora clique em Sincronizar com Google.');
+      await renderCurrentView();
+    },
+    onSync: async () => {
+      const result = await applicationApi().google.syncNow();
+      setStatus(`Sincronizado: ${result.pushed} enviado(s), ${result.imported} importado(s).`);
+      await renderCurrentView();
+    }
+  });
 }
 
 function updateNavigation() {

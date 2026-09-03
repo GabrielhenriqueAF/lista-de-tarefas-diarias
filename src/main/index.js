@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createActivityRepository } from './activity-repository.js';
@@ -6,12 +6,15 @@ import { createDailyBackup } from './backup-service.js';
 import { createBlockRepository } from './block-repository.js';
 import { createDatabase } from './database.js';
 import { createFrontRepository } from './front-repository.js';
+import { createGoogleAuth } from './google/google-auth.js';
+import { createGoogleController } from './google/google-controller.js';
 import { registerIpcHandlers } from './ipc.js';
 import { createReportRepository } from './report-repository.js';
 import { createRoutineRepository } from './routine-repository.js';
 import { createSettingsRepository } from './settings-repository.js';
 import { createTemplateRepository } from './template-repository.js';
 import { createTrackRepository } from './track-repository.js';
+import { createSyncRepository } from './sync-repository.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,22 +34,38 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  const databasePath = path.join(app.getPath('userData'), 'lista-de-tarefas-diarias.db');
-  const backupDirectory = path.join(app.getPath('userData'), 'backups');
+  const userDataDirectory = app.getPath('userData');
+  const databasePath = path.join(userDataDirectory, 'lista-de-tarefas-diarias.db');
+  const backupDirectory = path.join(userDataDirectory, 'backups');
   const database = createDatabase(databasePath, {
     beforeLegacyReset: () => createDailyBackup(databasePath, backupDirectory)
   });
   createDailyBackup(databasePath, backupDirectory);
-  const rules = createRoutineRepository(database);
+  const syncQueue = createSyncRepository(database);
+  const settings = createSettingsRepository(database);
+  const rules = createRoutineRepository(database, { syncQueue });
+  const blocks = createBlockRepository(database);
+  const google = createGoogleController({
+    auth: createGoogleAuth({
+      credentialsPath: path.join(userDataDirectory, 'credentials.json'),
+      tokenPath: path.join(userDataDirectory, 'google-token.json'),
+      openExternal: (url) => shell.openExternal(url)
+    }),
+    settings,
+    queue: syncQueue,
+    rules,
+    blocks
+  });
   const repositories = {
     activities: createActivityRepository(database),
     fronts: createFrontRepository(database),
     rules,
-    blocks: createBlockRepository(database),
+    blocks,
     templates: createTemplateRepository(rules),
     track: createTrackRepository(database),
-    settings: createSettingsRepository(database),
-    reports: createReportRepository(database)
+    settings,
+    reports: createReportRepository(database),
+    google
   };
   registerIpcHandlers(ipcMain, repositories);
   createWindow();

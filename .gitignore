@@ -1,6 +1,8 @@
 node_modules/
 dist/
 *.db
+backups/
 credentials.json
 token.json
+google-token.json
 .superpowers/

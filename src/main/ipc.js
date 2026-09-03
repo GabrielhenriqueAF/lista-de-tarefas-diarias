@@ -100,6 +100,15 @@ export function createHandlers(repositories) {
     },
     async setTheme(theme) {
       return repositories.settings.setTheme(theme);
+    },
+    async connectGoogle() {
+      return repositories.google.connect();
+    },
+    googleStatus() {
+      return repositories.google.status();
+    },
+    async syncGoogle() {
+      return repositories.google.syncNow();
     }
   };
 }
@@ -128,7 +137,10 @@ export function registerIpcHandlers(ipcMain, repositories) {
     'track:list': (_event, frontId) => handlers.listTrack(frontId),
     'reports:dashboard': (_event, filter) => handlers.dashboardReport(filter),
     'settings:get-theme': () => handlers.getTheme(),
-    'settings:set-theme': (_event, theme) => handlers.setTheme(theme)
+    'settings:set-theme': (_event, theme) => handlers.setTheme(theme),
+    'google:connect': () => handlers.connectGoogle(),
+    'google:status': () => handlers.googleStatus(),
+    'google:sync-now': () => handlers.syncGoogle()
   };
   Object.entries(channels).forEach(([channel, handler]) => ipcMain.handle(channel, handler));
 }

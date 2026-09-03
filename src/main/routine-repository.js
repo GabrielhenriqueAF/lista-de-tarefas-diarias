@@ -46,7 +46,7 @@ function assertRule(input) {
   assertSchedule({ weekday: input.weekdays[0], startTime: input.startTime, endTime: input.endTime });
 }
 
-export function createRoutineRepository(database) {
+export function createRoutineRepository(database, { syncQueue = null } = {}) {
   const findRule = database.prepare('SELECT * FROM recurrence_rules WHERE id = ?');
   const findBlock = database.prepare('SELECT * FROM blocks WHERE id = ?');
   const findBlockByRuleAndDate = database.prepare('SELECT * FROM blocks WHERE recurrence_rule_id = ? AND date = ?');
@@ -59,6 +59,13 @@ export function createRoutineRepository(database) {
     SET activity_id = @activityId, front_id = @frontId, title = @title, weekdays = @weekdays,
         start_time = @startTime, end_time = @endTime, checklist_template = @checklistTemplate,
         active = @active, updated_at = @updatedAt
+    WHERE id = @id
+  `);
+  const saveGoogleEventId = database.prepare('UPDATE recurrence_rules SET google_event_id = ? WHERE id = ?');
+  const applyGoogleSchedule = database.prepare(`
+    UPDATE recurrence_rules
+    SET title = @title, start_time = @startTime, end_time = @endTime,
+        google_event_id = @googleEventId, updated_at = @updatedAt
     WHERE id = @id
   `);
   const activeRules = database.prepare('SELECT * FROM recurrence_rules WHERE active = 1');
@@ -82,6 +89,15 @@ export function createRoutineRepository(database) {
     UPDATE blocks SET status = 'cancelled', updated_at = @updatedAt
     WHERE id = @id
   `);
+  const deactivateRule = database.prepare('UPDATE recurrence_rules SET active = 0, updated_at = @updatedAt WHERE id = @id');
+  const cancelFutureBlocks = database.prepare(`
+    UPDATE blocks SET status = 'cancelled', updated_at = @updatedAt
+    WHERE recurrence_rule_id = @id AND status != 'completed'
+  `);
+
+  function enqueueRule(id) {
+    syncQueue?.enqueue('upsert-rule', { id });
+  }
 
   function ensureBlock(rule, date) {
     const existing = findBlockByRuleAndDate.get(rule.id, date);
@@ -119,13 +135,41 @@ export function createRoutineRepository(database) {
       assertRule({ title, weekdays, startTime, endTime });
       const updatedAt = new Date().toISOString();
       const result = insertRule.run({ activityId, frontId, title: title.trim(), weekdays: JSON.stringify(weekdays), startTime, endTime, checklistTemplate: JSON.stringify(checklistTemplate), updatedAt });
-      return mapRule(findRule.get(result.lastInsertRowid));
+      const rule = mapRule(findRule.get(result.lastInsertRowid));
+      enqueueRule(rule.id);
+      return rule;
     },
 
     update({ id, activityId, frontId = null, title, weekdays, startTime, endTime, checklistTemplate = [], active = true }) {
       assertRule({ title, weekdays, startTime, endTime });
       const updatedAt = new Date().toISOString();
       updateRule.run({ id, activityId, frontId, title: title.trim(), weekdays: JSON.stringify(weekdays), startTime, endTime, checklistTemplate: JSON.stringify(checklistTemplate), active: active ? 1 : 0, updatedAt });
+      const rule = mapRule(findRule.get(id));
+      enqueueRule(rule.id);
+      return rule;
+    },
+
+    get(id) {
+      const rule = findRule.get(id);
+      return rule ? mapRule(rule) : null;
+    },
+
+    setGoogleEventId(id, googleEventId) {
+      saveGoogleEventId.run(googleEventId, id);
+      return mapRule(findRule.get(id));
+    },
+
+    deactivateFromGoogle(id) {
+      const updatedAt = new Date().toISOString();
+      const cancelledBlocks = database.transaction(() => {
+        deactivateRule.run({ id, updatedAt });
+        return cancelFutureBlocks.run({ id, updatedAt }).changes;
+      })();
+      return { rule: mapRule(findRule.get(id)), cancelledBlocks };
+    },
+
+    applyGoogleSchedule({ id, title, startTime, endTime, googleEventId, updatedAt }) {
+      applyGoogleSchedule.run({ id, title, startTime, endTime, googleEventId, updatedAt });
       return mapRule(findRule.get(id));
     },
 
