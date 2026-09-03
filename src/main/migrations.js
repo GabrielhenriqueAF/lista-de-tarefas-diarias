@@ -105,9 +105,20 @@ const ROUTINE_SCHEMA_SQL = `
   CREATE INDEX blocks_by_front ON blocks(front_id, date DESC);
 `;
 
+const LEGACY_TABLES = ['progress_entries', 'sessions', 'weekly_schedules', 'tasks'];
+
 export function schemaVersion(database) {
   const row = database.prepare('SELECT MAX(version) AS version FROM schema_migrations').get();
   return row.version ?? 0;
+}
+
+export function hasLegacySchema(database) {
+  const placeholders = LEGACY_TABLES.map(() => '?').join(', ');
+  return Boolean(database.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name IN (${placeholders})
+    LIMIT 1
+  `).get(...LEGACY_TABLES));
 }
 
 export function runMigrations(database) {

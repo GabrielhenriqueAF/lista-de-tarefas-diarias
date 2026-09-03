@@ -6,6 +6,8 @@ function mapBlock(row) {
     recurrenceRuleId: row.recurrence_rule_id,
     activityId: row.activity_id,
     frontId: row.front_id,
+    color: row.activity_color ?? '#2563eb',
+    frontName: row.front_name ?? null,
     date: row.date,
     title: row.title,
     plannedStartAt: row.planned_start_at,
@@ -38,8 +40,22 @@ export function createBlockRepository(database) {
     SET current_point = @currentPoint, next_step = @nextStep, updated_at = @updatedAt
     WHERE id = @id
   `);
-  const listToday = database.prepare('SELECT * FROM blocks WHERE date = ? ORDER BY planned_start_at');
-  const listHistory = database.prepare('SELECT * FROM blocks WHERE front_id = ? ORDER BY date DESC, finished_at DESC');
+  const listToday = database.prepare(`
+    SELECT blocks.*, activities.color AS activity_color, fronts.name AS front_name
+    FROM blocks
+    JOIN activities ON activities.id = blocks.activity_id
+    LEFT JOIN fronts ON fronts.id = blocks.front_id
+    WHERE blocks.date = ?
+    ORDER BY blocks.planned_start_at
+  `);
+  const listHistory = database.prepare(`
+    SELECT blocks.*, activities.color AS activity_color, fronts.name AS front_name
+    FROM blocks
+    JOIN activities ON activities.id = blocks.activity_id
+    LEFT JOIN fronts ON fronts.id = blocks.front_id
+    WHERE blocks.front_id = ?
+    ORDER BY blocks.date DESC, blocks.finished_at DESC
+  `);
   const listChecklist = database.prepare('SELECT * FROM block_checklist_items WHERE block_id = ? ORDER BY position');
   const toggleChecklist = database.prepare('UPDATE block_checklist_items SET completed = @completed WHERE id = @id');
   const cancel = database.prepare(`

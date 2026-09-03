@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
+import Database from 'better-sqlite3';
 import { createDatabase } from '../../src/main/database.js';
+import { createDailyBackup } from '../../src/main/backup-service.js';
 
 describe('routine database migration', () => {
   it('creates the Activities table in a fresh local database', () => {
@@ -14,6 +16,28 @@ describe('routine database migration', () => {
     expect(table).toEqual({ name: 'activities' });
 
     database.close();
+  });
+
+  it('copies a legacy database before its task table is reset', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'rotina-legacy-'));
+    const source = path.join(directory, 'legacy.db');
+    const legacy = new Database(source);
+    legacy.exec("CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT); INSERT INTO tasks (title) VALUES ('Não perder');");
+    legacy.close();
+
+    let backupPath;
+    const migrated = createDatabase(source, {
+      beforeLegacyReset: () => {
+        backupPath = createDailyBackup(source, path.join(directory, 'backups'), new Date('2026-09-08T12:00:00Z'));
+      }
+    });
+    migrated.close();
+
+    expect(backupPath).toBeTruthy();
+    const backup = new Database(backupPath, { readonly: true });
+    expect(backup.prepare('SELECT title FROM tasks').get()).toEqual({ title: 'Não perder' });
+    backup.close();
+    rmSync(directory, { recursive: true, force: true });
   });
 });
 
@@ -76,6 +100,10 @@ describe('recurrence rules and Blocks', () => {
       status: 'planned'
     }]);
     expect(rules.ensureBlocksForWeek('2026-09-07')).toHaveLength(1);
+    expect(rules.listWeek('2026-09-07')).toMatchObject([{
+      color: '#2563eb',
+      frontName: 'Writing'
+    }]);
 
     database.close();
   });
@@ -108,6 +136,10 @@ describe('Block execution', () => {
 
     expect(completed.realMinutes).toBe(142);
     expect(fronts.get(writing.id).nextStep).toBe('Começar no exercício 13');
+    expect(blocks.listToday('2026-09-08')).toMatchObject([{
+      color: '#2563eb',
+      frontName: 'Writing'
+    }]);
 
     database.close();
   });

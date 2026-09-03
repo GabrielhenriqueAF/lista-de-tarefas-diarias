@@ -32,8 +32,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
   const databasePath = path.join(app.getPath('userData'), 'lista-de-tarefas-diarias.db');
-  const database = createDatabase(databasePath);
-  createDailyBackup(databasePath, path.join(app.getPath('userData'), 'backups'));
+  const backupDirectory = path.join(app.getPath('userData'), 'backups');
+  const database = createDatabase(databasePath, {
+    beforeLegacyReset: () => createDailyBackup(databasePath, backupDirectory)
+  });
+  createDailyBackup(databasePath, backupDirectory);
   const rules = createRoutineRepository(database);
   const repositories = {
     activities: createActivityRepository(database),
