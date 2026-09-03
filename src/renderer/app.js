@@ -129,11 +129,61 @@ export async function renderToday(occurrences) {
   appRoot().replaceChildren(heading('Hoje', 'Inicie e finalize usando o horário real.'), ...(items.length ? items.map(createOccurrenceCard) : [message('Nenhuma tarefa prevista para hoje.')]));
 }
 
+export function formatMinutes(totalMinutes) {
+  return `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
+}
+
+export async function renderProgress(reportOrFilter) {
+  const report = Number.isFinite(reportOrFilter?.realMinutes)
+    ? reportOrFilter
+    : await window.taskApi.reports.progress(reportOrFilter);
+  const metrics = document.createElement('section');
+  metrics.className = 'task-card';
+  const total = document.createElement('p');
+  total.className = 'task-title';
+  total.textContent = formatMinutes(report.realMinutes);
+  const days = document.createElement('p');
+  days.textContent = `${report.activeDays} dias ativos`;
+  const sessions = document.createElement('p');
+  sessions.className = 'task-meta';
+  sessions.textContent = `${report.sessions ?? 0} sessões concluídas`;
+  metrics.append(total, days, sessions);
+
+  const subtasks = document.createElement('ul');
+  for (const subtask of report.subtasks ?? []) {
+    const item = document.createElement('li');
+    item.textContent = subtask;
+    subtasks.append(item);
+  }
+  appRoot().replaceChildren(
+    heading('Progresso', 'Tempo real investido no período escolhido.'),
+    metrics,
+    ...(subtasks.children.length ? [subtasks] : [message('Ainda não há subtarefas registradas neste período.')])
+  );
+}
+
+export async function renderHistory(entriesOrTaskId) {
+  const entries = Array.isArray(entriesOrTaskId)
+    ? entriesOrTaskId
+    : await window.taskApi.sessions.listHistory(entriesOrTaskId);
+  const list = document.createElement('ol');
+  for (const entry of entries) {
+    const row = document.createElement('li');
+    row.textContent = `${entry.subtaskTitle}: ${entry.continuationPoint}`;
+    list.append(row);
+  }
+  appRoot().replaceChildren(
+    heading('Histórico', 'Continue exatamente de onde parou.'),
+    ...(entries.length ? [list] : [message('Nenhum registro de estudo foi criado ainda.')])
+  );
+}
+
 async function selectTab(tab) {
   document.querySelectorAll('[data-tab]').forEach((button) => button.setAttribute('aria-current', button.dataset.tab === tab ? 'page' : 'false'));
   if (tab === 'week') return renderWeek();
   if (tab === 'today') return renderToday();
-  appRoot().replaceChildren(heading(tab === 'progress' ? 'Progresso' : 'Histórico', 'Esta área será preenchida na próxima etapa.'));
+  if (tab === 'progress') return renderProgress({ realMinutes: 0, activeDays: 0, sessions: 0, subtasks: [] });
+  return renderHistory([]);
 }
 
 function initialize() {

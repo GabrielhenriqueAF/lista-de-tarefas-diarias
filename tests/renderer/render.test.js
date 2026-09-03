@@ -2,10 +2,31 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 let renderToday;
+let renderProgress;
+let renderHistory;
 
 beforeEach(async () => {
   document.body.innerHTML = '<main id="app"></main>';
-  ({ renderToday } = await import('../../src/renderer/app.js'));
+  ({ renderToday, renderProgress, renderHistory } = await import('../../src/renderer/app.js'));
+});
+
+describe('progress and history views', () => {
+  it('renders real monthly hours and active days', async () => {
+    await renderProgress({ realMinutes: 1120, activeDays: 8, subtasks: [] });
+
+    expect(document.body.textContent).toContain('18h 40m');
+    expect(document.body.textContent).toContain('8 dias ativos');
+  });
+
+  it('renders the last continuation point in history', async () => {
+    await renderHistory([{
+      subtaskTitle: 'Writing',
+      continuationPoint: 'Começar no exercício 13',
+      createdAt: '2026-09-08T07:40:00'
+    }]);
+
+    expect(document.body.textContent).toContain('Começar no exercício 13');
+  });
 });
 
 describe('daily view', () => {
