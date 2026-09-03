@@ -23,6 +23,27 @@ export function createDatabase(filename) {
       subtask_title TEXT,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY,
+      task_id INTEGER NOT NULL REFERENCES tasks(id),
+      schedule_id INTEGER REFERENCES weekly_schedules(id),
+      planned_start_at TEXT,
+      planned_end_at TEXT,
+      started_at TEXT NOT NULL,
+      finished_at TEXT,
+      status TEXT NOT NULL,
+      note TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS progress_entries (
+      id INTEGER PRIMARY KEY,
+      session_id INTEGER NOT NULL REFERENCES sessions(id),
+      subtask_title TEXT NOT NULL,
+      progress TEXT NOT NULL,
+      continuation_point TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
   return database;
 }

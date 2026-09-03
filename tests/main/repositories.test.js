@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDatabase } from '../../src/main/database.js';
+import { createSessionRepository } from '../../src/main/session-repository.js';
 import { createTaskRepository } from '../../src/main/task-repository.js';
 
 describe('task repository', () => {
@@ -24,6 +25,49 @@ describe('task repository', () => {
         startTime: '05:00'
       }
     ]);
+
+    database.close();
+  });
+});
+
+describe('session repository', () => {
+  it('uses real times in the monthly report', () => {
+    const database = createDatabase(':memory:');
+    const tasks = createTaskRepository(database);
+    const sessions = createSessionRepository(database);
+    const task = tasks.createTask({ title: 'Estudar inglês', color: '#2563eb' });
+    const session = sessions.startSession({ taskId: task.id, startedAt: '2026-09-08T05:18:00' });
+
+    sessions.finishSession({
+      id: session.id,
+      finishedAt: '2026-09-08T07:40:00',
+      note: 'Exercício 12 concluído'
+    });
+
+    expect(sessions.getProgressReport({
+      taskId: task.id,
+      from: '2026-09-01',
+      to: '2026-09-30'
+    }).realMinutes).toBe(142);
+
+    database.close();
+  });
+
+  it('returns the most recent subtask continuation point first', () => {
+    const database = createDatabase(':memory:');
+    const tasks = createTaskRepository(database);
+    const sessions = createSessionRepository(database);
+    const task = tasks.createTask({ title: 'Estudar inglês', color: '#2563eb' });
+    const session = sessions.startSession({ taskId: task.id, startedAt: '2026-09-08T05:18:00' });
+
+    sessions.recordProgress({
+      sessionId: session.id,
+      subtaskTitle: 'Writing',
+      progress: 'Unidade 3',
+      continuationPoint: 'Começar no exercício 13'
+    });
+
+    expect(sessions.listHistory(task.id)[0].continuationPoint).toBe('Começar no exercício 13');
 
     database.close();
   });
