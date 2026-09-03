@@ -3,7 +3,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('taskApi', {
   tasks: {
     create: (input) => ipcRenderer.invoke('tasks:create', input),
-    listWeek: (weekStart) => ipcRenderer.invoke('tasks:list-week', weekStart)
+    list: () => ipcRenderer.invoke('tasks:list'),
+    listWeek: (weekStart) => ipcRenderer.invoke('tasks:list-week', weekStart),
+    saveSchedule: (input) => ipcRenderer.invoke('tasks:save-schedule', input)
   },
   sessions: {
     start: (input) => ipcRenderer.invoke('sessions:start', input),

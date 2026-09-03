@@ -102,8 +102,89 @@ function createOccurrenceCard(occurrence) {
   return card;
 }
 
+function labeledControl(form, labelText, control) {
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  label.append(control);
+  form.append(label);
+}
+
+function createPlanningForm(tasks) {
+  const section = document.createElement('section');
+  section.className = 'task-card';
+  const title = document.createElement('h3');
+  title.textContent = 'Adicionar à rotina';
+  const form = document.createElement('form');
+  form.className = 'session-form';
+  form.dataset.form = 'create-schedule';
+
+  const existingTask = document.createElement('select');
+  existingTask.name = 'existingTaskId';
+  const newTask = document.createElement('option');
+  newTask.value = '';
+  newTask.textContent = 'Criar uma tarefa nova';
+  existingTask.append(newTask);
+  for (const task of tasks) {
+    const option = document.createElement('option');
+    option.value = String(task.id);
+    option.textContent = task.title;
+    existingTask.append(option);
+  }
+  labeledControl(form, 'Tarefa existente (opcional)', existingTask);
+
+  const taskTitle = document.createElement('input');
+  taskTitle.name = 'title';
+  taskTitle.placeholder = 'Ex.: Estudar inglês';
+  labeledControl(form, 'Nome da nova tarefa', taskTitle);
+
+  const color = document.createElement('input');
+  color.name = 'color'; color.type = 'color'; color.value = '#2563eb';
+  labeledControl(form, 'Cor', color);
+
+  const weekday = document.createElement('select');
+  weekday.name = 'weekday';
+  for (const [value, text] of [[1, 'Segunda'], [2, 'Terça'], [3, 'Quarta'], [4, 'Quinta'], [5, 'Sexta'], [6, 'Sábado'], [0, 'Domingo']]) {
+    const option = document.createElement('option'); option.value = String(value); option.textContent = text; weekday.append(option);
+  }
+  labeledControl(form, 'Dia da semana', weekday);
+
+  for (const [name, label, value] of [['startTime', 'Início', '05:00'], ['endTime', 'Término', '08:00']]) {
+    const input = document.createElement('input'); input.name = name; input.type = 'time'; input.value = value;
+    labeledControl(form, label, input);
+  }
+  const subtask = document.createElement('input');
+  subtask.name = 'subtaskTitle'; subtask.placeholder = 'Ex.: Writing';
+  labeledControl(form, 'Subtarefa (opcional)', subtask);
+
+  const submit = document.createElement('button');
+  submit.type = 'submit'; submit.textContent = 'Salvar na rotina'; form.append(submit);
+  const feedback = document.createElement('p'); feedback.className = 'muted'; form.append(feedback);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      const selectedId = Number(form.elements.existingTaskId.value);
+      const task = selectedId
+        ? { id: selectedId }
+        : await window.taskApi.tasks.create({ title: form.elements.title.value, color: form.elements.color.value });
+      await window.taskApi.tasks.saveSchedule({
+        taskId: task.id,
+        weekday: Number(form.elements.weekday.value),
+        startTime: form.elements.startTime.value,
+        endTime: form.elements.endTime.value,
+        subtaskTitle: form.elements.subtaskTitle.value || null
+      });
+      await renderWeek();
+    } catch (error) {
+      feedback.textContent = error.message;
+    }
+  });
+  section.append(title, form);
+  return section;
+}
+
 export async function renderWeek(occurrences) {
   const planned = occurrences ?? await window.taskApi.tasks.listWeek(currentWeekStart());
+  const tasks = typeof window.taskApi !== 'undefined' ? await window.taskApi.tasks.list() : [];
   const grid = document.createElement('section');
   grid.className = 'week-grid';
   const monday = new Date(`${currentWeekStart()}T12:00:00`);
@@ -119,7 +200,7 @@ export async function renderWeek(occurrences) {
     column.append(...(items.length ? items.map(createOccurrenceCard) : [message('Sem tarefas previstas.')]));
     grid.append(column);
   }
-  appRoot().replaceChildren(heading('Minha semana', 'Planeje e acompanhe a sua rotina.'), grid);
+  appRoot().replaceChildren(heading('Minha semana', 'Planeje e acompanhe a sua rotina.'), createPlanningForm(tasks), grid);
 }
 
 export async function renderToday(occurrences) {

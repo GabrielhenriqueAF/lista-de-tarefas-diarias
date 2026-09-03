@@ -4,6 +4,15 @@ import { createSessionRepository } from '../../src/main/session-repository.js';
 import { createTaskRepository } from '../../src/main/task-repository.js';
 
 describe('task repository', () => {
+  it('starts with no tasks in a fresh database', () => {
+    const database = createDatabase(':memory:');
+    const repository = createTaskRepository(database);
+
+    expect(repository.listTasks()).toEqual([]);
+
+    database.close();
+  });
+
   it('returns a Tuesday English occurrence for the selected week', () => {
     const database = createDatabase(':memory:');
     const repository = createTaskRepository(database);

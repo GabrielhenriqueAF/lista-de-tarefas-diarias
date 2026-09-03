@@ -4,10 +4,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 let renderToday;
 let renderProgress;
 let renderHistory;
+let renderWeek;
 
 beforeEach(async () => {
   document.body.innerHTML = '<main id="app"></main>';
-  ({ renderToday, renderProgress, renderHistory } = await import('../../src/renderer/app.js'));
+  ({ renderToday, renderProgress, renderHistory, renderWeek } = await import('../../src/renderer/app.js'));
 });
 
 describe('progress and history views', () => {
@@ -39,5 +40,13 @@ describe('daily view', () => {
 
     expect(document.body.textContent).toContain('Iniciado às 05:18');
     expect(document.querySelector('[data-action="finish-session"]')).not.toBeNull();
+  });
+});
+
+describe('weekly planning view', () => {
+  it('offers a form to create a task and its recurring weekly schedule', async () => {
+    await renderWeek([]);
+
+    expect(document.querySelector('[data-form="create-schedule"]')).not.toBeNull();
   });
 });
