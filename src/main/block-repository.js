@@ -40,6 +40,8 @@ export function createBlockRepository(database) {
   `);
   const listToday = database.prepare('SELECT * FROM blocks WHERE date = ? ORDER BY planned_start_at');
   const listHistory = database.prepare('SELECT * FROM blocks WHERE front_id = ? ORDER BY date DESC, finished_at DESC');
+  const listChecklist = database.prepare('SELECT * FROM block_checklist_items WHERE block_id = ? ORDER BY position');
+  const toggleChecklist = database.prepare('UPDATE block_checklist_items SET completed = @completed WHERE id = @id');
   const cancel = database.prepare(`
     UPDATE blocks SET status = 'cancelled', updated_at = @updatedAt
     WHERE id = @id
@@ -90,6 +92,20 @@ export function createBlockRepository(database) {
 
     listHistory(frontId) {
       return listHistory.all(frontId).map(mapBlock);
+    },
+
+    listChecklist(blockId) {
+      return listChecklist.all(blockId).map((item) => ({
+        id: item.id,
+        blockId: item.block_id,
+        position: item.position,
+        title: item.title,
+        completed: Boolean(item.completed)
+      }));
+    },
+
+    toggleChecklistItem({ id, completed }) {
+      toggleChecklist.run({ id, completed: completed ? 1 : 0 });
     },
 
     cancel(id) {

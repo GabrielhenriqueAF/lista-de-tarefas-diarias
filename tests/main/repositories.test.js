@@ -109,3 +109,40 @@ describe('Block execution', () => {
     database.close();
   });
 });
+
+describe('templates and learning Track', () => {
+  it('copies Reading steps into a Block and computes Track progress', async () => {
+    const { createActivityRepository } = await import('../../src/main/activity-repository.js');
+    const { createFrontRepository } = await import('../../src/main/front-repository.js');
+    const { createRoutineRepository } = await import('../../src/main/routine-repository.js');
+    const { createBlockRepository } = await import('../../src/main/block-repository.js');
+    const { createTemplateRepository } = await import('../../src/main/template-repository.js');
+    const { createTrackRepository } = await import('../../src/main/track-repository.js');
+    const database = createDatabase(':memory:');
+    const activities = createActivityRepository(database);
+    const fronts = createFrontRepository(database);
+    const rules = createRoutineRepository(database);
+    const blocks = createBlockRepository(database);
+    const templates = createTemplateRepository(rules);
+    const track = createTrackRepository(database);
+    const english = activities.create({ name: 'Inglês', category: 'Estudo', color: '#2563eb' });
+    const reading = fronts.create({ activityId: english.id, name: 'Reading' });
+
+    templates.applyToRule({
+      activityId: english.id,
+      frontId: reading.id,
+      templateName: 'Inglês — Reading',
+      weekdays: [1],
+      startTime: '05:00',
+      endTime: '08:00'
+    });
+    const [block] = rules.ensureBlocksForWeek('2026-09-07');
+    const chapter = track.create({ frontId: reading.id, position: 1, title: 'Capítulo 1' });
+    track.complete(chapter.id, '2026-09-07T08:00:00');
+
+    expect(blocks.listChecklist(block.id)).toHaveLength(5);
+    expect(track.progressForFront(reading.id)).toEqual({ completed: 1, total: 1, percent: 100 });
+
+    database.close();
+  });
+});

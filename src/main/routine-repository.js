@@ -64,6 +64,10 @@ export function createRoutineRepository(database) {
     INSERT INTO blocks (recurrence_rule_id, activity_id, front_id, date, title, planned_start_at, planned_end_at, status, created_at, updated_at)
     VALUES (@recurrenceRuleId, @activityId, @frontId, @date, @title, @plannedStartAt, @plannedEndAt, 'planned', @timestamp, @timestamp)
   `);
+  const insertChecklistItem = database.prepare(`
+    INSERT INTO block_checklist_items (block_id, position, title)
+    VALUES (@blockId, @position, @title)
+  `);
   const weekBlocks = database.prepare(`
     SELECT * FROM blocks
     WHERE date BETWEEN @weekStart AND @weekEnd
@@ -87,6 +91,9 @@ export function createRoutineRepository(database) {
       plannedStartAt: `${date}T${rule.startTime}:00`,
       plannedEndAt: `${date}T${rule.endTime}:00`,
       timestamp
+    });
+    rule.checklistTemplate.forEach((title, position) => {
+      insertChecklistItem.run({ blockId: result.lastInsertRowid, position, title });
     });
     return mapBlock(findBlock.get(result.lastInsertRowid));
   }
