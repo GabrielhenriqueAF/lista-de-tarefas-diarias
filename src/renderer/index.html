@@ -4,11 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Tarefas Diárias</title>
+    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main>
-      <h1>Lista de Tarefas Diárias</h1>
-      <p>Base do aplicativo criada.</p>
-    </main>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ROTINA PESSOAL</p>
+        <h1>Lista de Tarefas Diárias</h1>
+      </div>
+      <nav aria-label="Áreas do aplicativo">
+        <button data-tab="week" type="button">Minha semana</button>
+        <button data-tab="today" type="button">Hoje</button>
+        <button data-tab="progress" type="button">Progresso</button>
+        <button data-tab="history" type="button">Histórico</button>
+      </nav>
+    </header>
+    <main id="app" aria-live="polite"></main>
+    <script type="module" src="app.js"></script>
   </body>
 </html>
