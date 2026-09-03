@@ -44,3 +44,36 @@ describe('Activities and Fronts', () => {
     database.close();
   });
 });
+
+describe('recurrence rules and Blocks', () => {
+  it('materializes Tuesday Writing only once', async () => {
+    const { createActivityRepository } = await import('../../src/main/activity-repository.js');
+    const { createFrontRepository } = await import('../../src/main/front-repository.js');
+    const { createRoutineRepository } = await import('../../src/main/routine-repository.js');
+    const database = createDatabase(':memory:');
+    const activities = createActivityRepository(database);
+    const fronts = createFrontRepository(database);
+    const rules = createRoutineRepository(database);
+    const english = activities.create({ name: 'Inglês', category: 'Estudo', color: '#2563eb' });
+    const writing = fronts.create({ activityId: english.id, name: 'Writing' });
+    const rule = rules.create({
+      activityId: english.id,
+      frontId: writing.id,
+      weekdays: [2],
+      startTime: '05:00',
+      endTime: '08:00',
+      title: 'Inglês — Writing',
+      checklistTemplate: []
+    });
+
+    expect(rules.ensureBlocksForWeek('2026-09-07')).toMatchObject([{
+      recurrenceRuleId: rule.id,
+      date: '2026-09-08',
+      plannedStartAt: '2026-09-08T05:00:00',
+      status: 'planned'
+    }]);
+    expect(rules.ensureBlocksForWeek('2026-09-07')).toHaveLength(1);
+
+    database.close();
+  });
+});
