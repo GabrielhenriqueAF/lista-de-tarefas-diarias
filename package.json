@@ -1,0 +1,21 @@
+{
+  "name": "lista-de-tarefas-diarias",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "vitest",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^44.1.1",
+    "jsdom": "^30.0.1",
+    "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  }
+}
