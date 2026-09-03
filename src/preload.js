@@ -1,19 +1,42 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('taskApi', {
-  tasks: {
-    create: (input) => ipcRenderer.invoke('tasks:create', input),
-    list: () => ipcRenderer.invoke('tasks:list'),
-    listWeek: (weekStart) => ipcRenderer.invoke('tasks:list-week', weekStart),
-    saveSchedule: (input) => ipcRenderer.invoke('tasks:save-schedule', input)
+const invoke = (channel, value) => ipcRenderer.invoke(channel, value);
+
+contextBridge.exposeInMainWorld('routineApi', {
+  activities: {
+    create: (input) => invoke('activities:create', input),
+    update: (input) => invoke('activities:update', input),
+    archive: (id) => invoke('activities:archive', id),
+    list: () => invoke('activities:list')
   },
-  sessions: {
-    start: (input) => ipcRenderer.invoke('sessions:start', input),
-    finish: (input) => ipcRenderer.invoke('sessions:finish', input),
-    recordProgress: (input) => ipcRenderer.invoke('sessions:record-progress', input),
-    listHistory: (taskId) => ipcRenderer.invoke('sessions:list-history', taskId)
+  fronts: {
+    create: (input) => invoke('fronts:create', input),
+    update: (input) => invoke('fronts:update', input),
+    list: (activityId) => invoke('fronts:list', activityId)
+  },
+  rules: {
+    create: (input) => invoke('rules:create', input),
+    update: (input) => invoke('rules:update', input),
+    listWeek: (weekStart) => invoke('rules:list-week', weekStart)
+  },
+  blocks: {
+    start: (input) => invoke('blocks:start', input),
+    finish: (input) => invoke('blocks:finish', input),
+    listToday: (date) => invoke('blocks:list-today', date),
+    listHistory: (frontId) => invoke('blocks:list-history', frontId),
+    listChecklist: (blockId) => invoke('blocks:list-checklist', blockId),
+    toggleChecklist: (input) => invoke('blocks:toggle-checklist', input)
+  },
+  track: {
+    create: (input) => invoke('track:create', input),
+    complete: (input) => invoke('track:complete', input),
+    list: (frontId) => invoke('track:list', frontId)
   },
   reports: {
-    progress: (filter) => ipcRenderer.invoke('reports:progress', filter)
+    dashboard: (filter) => invoke('reports:dashboard', filter)
+  },
+  settings: {
+    getTheme: () => invoke('settings:get-theme'),
+    setTheme: (theme) => invoke('settings:set-theme', theme)
   }
 });
