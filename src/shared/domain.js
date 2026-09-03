@@ -2,6 +2,12 @@ export function minutesBetween(startedAt, finishedAt) {
   return Math.round((new Date(finishedAt) - new Date(startedAt)) / 60000);
 }
 
+export function assertNonEmpty(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${label} é obrigatório.`);
+  }
+}
+
 export function assertTask(input) {
   if (typeof input.title !== 'string' || input.title.trim().length === 0) {
     throw new Error('O título da tarefa é obrigatório.');
