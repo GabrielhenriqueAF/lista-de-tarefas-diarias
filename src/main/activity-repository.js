@@ -40,6 +40,13 @@ export function createActivityRepository(database) {
     SELECT id, google_event_id FROM recurrence_rules
     WHERE activity_id = ? AND google_event_id IS NOT NULL
   `);
+  const googleEventIds = database.prepare(`
+    SELECT google_event_id FROM recurrence_rules
+    WHERE activity_id = ? AND google_event_id IS NOT NULL
+    UNION
+    SELECT google_event_id FROM blocks
+    WHERE activity_id = ? AND google_event_id IS NOT NULL
+  `);
   const ruleIds = database.prepare('SELECT id FROM recurrence_rules WHERE activity_id = ?');
   const deleteChecklist = database.prepare('DELETE FROM block_checklist_items WHERE block_id IN (SELECT id FROM blocks WHERE activity_id = ?)');
   const deleteTrack = database.prepare('DELETE FROM track_items WHERE front_id IN (SELECT id FROM fronts WHERE activity_id = ?)');
@@ -82,11 +89,12 @@ export function createActivityRepository(database) {
         const activity = findById.get(id);
         if (!activity) throw new Error('Atividade não encontrada.');
         const linkedRuleEvents = ruleEventIds.all(id).map((row) => ({ id: row.id, googleEventId: row.google_event_id }));
+        const linkedGoogleEvents = googleEventIds.all(id, id).map((row) => row.google_event_id);
         archiveActivity.run({ id, timestamp });
         archiveFronts.run({ id, timestamp });
         archiveRules.run({ id, timestamp });
         cancelFuturePlannedBlocks.run({ id, today, timestamp });
-        return { activity: mapActivity(findById.get(id)), ruleEventIds: linkedRuleEvents };
+        return { activity: mapActivity(findById.get(id)), ruleEventIds: linkedRuleEvents, googleEventIds: linkedGoogleEvents };
       })();
     },
 
@@ -107,6 +115,10 @@ export function createActivityRepository(database) {
 
     getRuleEventIds(id) {
       return ruleEventIds.all(id).map((row) => ({ id: row.id, googleEventId: row.google_event_id }));
+    },
+
+    getGoogleEventIds(id) {
+      return googleEventIds.all(id, id).map((row) => row.google_event_id);
     },
 
     purge(id) {

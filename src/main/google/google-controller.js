@@ -41,8 +41,8 @@ export function createGoogleController({ auth, settings, queue, rules, blocks, a
 
     async archiveActivity(id, today) {
       const result = requireActivities().archive(id, today);
-      result.ruleEventIds.forEach(({ googleEventId }) => queue.enqueue('delete-rule', { googleEventId }));
-      if (result.ruleEventIds.length > 0 && auth.status().connected) await this.syncNow();
+      result.googleEventIds.forEach((googleEventId) => queue.enqueue('delete-rule', { googleEventId }));
+      if (result.googleEventIds.length > 0 && auth.status().connected) await this.syncNow();
       return result.activity;
     },
 
@@ -58,7 +58,7 @@ export function createGoogleController({ auth, settings, queue, rules, blocks, a
       const activity = activityRepository.get(id);
       if (!activity) throw new Error('Atividade não encontrada.');
       if (activity.active) throw new Error('Arquive a atividade antes de excluí-la definitivamente.');
-      const eventIds = activityRepository.getRuleEventIds(id).map(({ googleEventId }) => googleEventId);
+      const eventIds = activityRepository.getGoogleEventIds(id);
       if (eventIds.length > 0) {
         if (!auth.status().connected) throw new Error('Conecte sua conta do Google para remover esta atividade também da Agenda.');
         const { google, calendarService } = services();

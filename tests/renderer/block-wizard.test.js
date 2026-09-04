@@ -39,7 +39,9 @@ describe('block creation wizard', () => {
       endTime: '08:00',
       checklistTemplate: [],
       startsOn: null,
-      endsOn: null
+      endsOn: null,
+      scheduleMode: 'recurring',
+      date: null
     }]);
   });
 
@@ -73,5 +75,22 @@ describe('block creation wizard', () => {
     document.querySelector('[data-range-preset="6-months"]').click();
 
     expect(document.querySelector('[data-recurrence-summary]').textContent).toMatch(/Toda terça-feira por 6 meses/i);
+  });
+
+  it('submits a one-time Block for a specific date without weekly recurrence', () => {
+    const drafts = [];
+    const wizard = createBlockWizard({ root: document.body, onSubmit: (draft) => drafts.push(draft) });
+    wizard.open({ activities: [], fronts: [], trigger: document.body });
+    document.querySelector('input[name="activityName"]').value = 'Saúde';
+    document.querySelector('[data-wizard-next]').click();
+    document.querySelector('[data-wizard-next]').click();
+    document.querySelector('[data-wizard-schedule-mode="single"]').click();
+    document.querySelector('input[name="singleDate"]').value = '2026-10-15';
+    document.querySelector('input[name="startTime"]').value = '14:00';
+    document.querySelector('input[name="endTime"]').value = '15:00';
+    document.querySelector('[data-wizard-submit]').click();
+
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ scheduleMode: 'single', date: '2026-10-15', weekdays: [], startsOn: null, endsOn: null });
   });
 });

@@ -43,12 +43,14 @@ describe('preload bridge', () => {
     await expect(exposedApi.activities.listArchived()).resolves.toEqual({ channel: 'activities:list-archived', value: undefined });
     await expect(exposedApi.activities.restore(2)).resolves.toEqual({ channel: 'activities:restore', value: 2 });
     await expect(exposedApi.activities.purge(2)).resolves.toEqual({ channel: 'activities:purge', value: 2 });
+    await expect(exposedApi.blocks.createAdHoc({ title: 'Dentista' })).resolves.toEqual({ channel: 'blocks:create-ad-hoc', value: { title: 'Dentista' } });
     expect(calls).toEqual([
       { channel: 'settings:get-theme', value: undefined },
       { channel: 'activities:create', value: { name: 'Inglês' } },
       { channel: 'activities:list-archived', value: undefined },
       { channel: 'activities:restore', value: 2 },
-      { channel: 'activities:purge', value: 2 }
+      { channel: 'activities:purge', value: 2 },
+      { channel: 'blocks:create-ad-hoc', value: { title: 'Dentista' } }
     ]);
   });
 });

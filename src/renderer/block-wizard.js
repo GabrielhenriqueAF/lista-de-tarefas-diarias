@@ -47,6 +47,8 @@ export function createBlockWizard({ root, onSubmit }) {
     frontName: '',
     currentPoint: '',
     nextStep: '',
+    scheduleMode: 'recurring',
+    singleDate: new Date().toISOString().slice(0, 10),
     weekdays: new Set(),
     periodMode: 'open',
     startsOn: null,
@@ -91,6 +93,7 @@ export function createBlockWizard({ root, onSubmit }) {
   }
 
   function rememberRuleFields(dialog) {
+    state.singleDate = fieldValue(dialog, 'singleDate', state.singleDate);
     state.startTime = fieldValue(dialog, 'startTime', state.startTime);
     state.endTime = fieldValue(dialog, 'endTime', state.endTime);
     state.checklist = fieldValue(dialog, 'checklistTemplate', state.checklist);
@@ -112,6 +115,9 @@ export function createBlockWizard({ root, onSubmit }) {
 
   function validateStepThree(dialog) {
     rememberRuleFields(dialog);
+    if (state.scheduleMode === 'single' && !/^\d{4}-\d{2}-\d{2}$/.test(state.singleDate)) return 'Escolha a data do bloco.';
+    if (state.scheduleMode === 'single' && (!state.startTime || !state.endTime || state.endTime <= state.startTime)) return 'O término precisa ser depois do início.';
+    if (state.scheduleMode === 'single') return '';
     if (state.weekdays.size === 0) return 'Escolha pelo menos um dia.';
     if (!state.startTime || !state.endTime || state.endTime <= state.startTime) return 'O término precisa ser depois do início.';
     if (state.periodMode === 'range' && (!state.startsOn || !state.endsOn)) return 'Escolha o início e o fim do período.';
@@ -137,6 +143,8 @@ export function createBlockWizard({ root, onSubmit }) {
       startTime: state.startTime,
       endTime: state.endTime,
       checklistTemplate: state.checklist.split('\n').map((item) => item.trim()).filter(Boolean),
+      scheduleMode: state.scheduleMode,
+      date: state.scheduleMode === 'single' ? state.singleDate : null,
       startsOn: state.periodMode === 'range' ? state.startsOn : null,
       endsOn: state.periodMode === 'range' ? state.endsOn : null
     };
@@ -229,7 +237,27 @@ export function createBlockWizard({ root, onSubmit }) {
 
   function renderRule(dialog) {
     const content = element('section', { className: 'wizard-content' });
-    content.append(element('p', { className: 'muted', text: 'Escolha em quais dias o bloco se repete e por quanto tempo a rotina vale.' }));
+    content.append(element('p', { className: 'muted', text: state.scheduleMode === 'single' ? 'Agende uma tarefa para uma data única.' : 'Escolha em quais dias o bloco se repete e por quanto tempo a rotina vale.' }));
+    const scheduleChoices = element('div', { className: 'wizard-choices', attributes: { 'aria-label': 'Tipo de agendamento' } });
+    [['recurring', 'Repetir semanalmente'], ['single', 'Data específica']].forEach(([mode, label]) => {
+      const choice = controlButton(label, { wizardScheduleMode: mode }, state.scheduleMode === mode);
+      choice.addEventListener('click', () => {
+        state.scheduleMode = mode;
+        state.error = '';
+        render();
+      });
+      scheduleChoices.append(choice);
+    });
+    content.append(scheduleChoices);
+    const start = element('input', { name: 'startTime', type: 'time', value: state.startTime });
+    const end = element('input', { name: 'endTime', type: 'time', value: state.endTime });
+    const checklist = element('textarea', { name: 'checklistTemplate', value: state.checklist, placeholder: 'Subtarefas, uma por linha (opcional)' });
+    if (state.scheduleMode === 'single') {
+      const date = element('input', { name: 'singleDate', type: 'date', value: state.singleDate });
+      content.append(labeled('Data', date), element('p', { className: 'recurrence-summary', text: 'Essa tarefa acontecerá uma única vez.', attributes: { 'data-single-date-summary': '' } }), labeled('Início', start), labeled('Término', end), labeled('Checklist', checklist));
+      dialog.append(content);
+      return;
+    }
     const days = element('div', { className: 'weekday-picker', attributes: { 'aria-label': 'Dias da semana' } });
     WEEKDAYS.forEach(([weekday, label]) => {
       const button = controlButton(label, { wizardDay: weekday }, state.weekdays.has(weekday));
@@ -251,9 +279,6 @@ export function createBlockWizard({ root, onSubmit }) {
       });
       periodChoices.append(choice);
     });
-    const start = element('input', { name: 'startTime', type: 'time', value: state.startTime });
-    const end = element('input', { name: 'endTime', type: 'time', value: state.endTime });
-    const checklist = element('textarea', { name: 'checklistTemplate', value: state.checklist, placeholder: 'Subtarefas, uma por linha (opcional)' });
     content.append(element('span', { className: 'field-label', text: 'Repetir em' }), days, element('span', { className: 'field-label', text: 'Duração' }), periodChoices);
     if (state.periodMode === 'range') {
       content.append(createDateRangePicker({
@@ -329,7 +354,7 @@ export function createBlockWizard({ root, onSubmit }) {
         step: 1, activities, fronts, trigger, error: '', activityMode: activities.length ? 'existing' : 'create',
         activityId: activities.length ? String(activities[0].id) : '', activityName: '', category: '', color: COLORS[0],
         weeklyGoalMinutes: '', frontMode: 'skip', frontId: '', frontName: '', currentPoint: '', nextStep: '',
-        weekdays: new Set(), periodMode: 'open', startsOn: null, endsOn: null, startTime: '08:00', endTime: '09:00', checklist: ''
+        scheduleMode: 'recurring', singleDate: new Date().toISOString().slice(0, 10), weekdays: new Set(), periodMode: 'open', startsOn: null, endsOn: null, startTime: '08:00', endTime: '09:00', checklist: ''
       });
       render();
     },

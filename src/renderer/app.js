@@ -116,6 +116,20 @@ async function saveBlockDraft(draft) {
   if (draft.front.mode !== 'skip' && !front) throw new Error('Frente não encontrada.');
 
   const title = front ? `${activity.name} — ${front.name}` : activity.name;
+  if (draft.scheduleMode === 'single') {
+    await applicationApi().blocks.createAdHoc({
+      activityId: activity.id,
+      frontId: front?.id ?? null,
+      title,
+      date: draft.date,
+      startTime: draft.startTime,
+      endTime: draft.endTime,
+      checklistTemplate: draft.checklistTemplate
+    });
+    showToast('Bloco avulso adicionado à sua rotina.');
+    await renderCurrentView();
+    return;
+  }
   await applicationApi().rules.create({
     activityId: activity.id,
     frontId: front?.id ?? null,

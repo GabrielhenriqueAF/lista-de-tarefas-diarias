@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('routineApi', {
     listWeek: (weekStart) => invoke('rules:list-week', weekStart)
   },
   blocks: {
+    createAdHoc: (input) => invoke('blocks:create-ad-hoc', input),
     start: (input) => invoke('blocks:start', input),
     finish: (input) => invoke('blocks:finish', input),
     listToday: (date) => invoke('blocks:list-today', date),

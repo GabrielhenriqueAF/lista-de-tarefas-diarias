@@ -37,7 +37,7 @@ app.whenReady().then(() => {
   const settings = createSettingsRepository(database);
   const activities = createActivityRepository(database);
   const rules = createRoutineRepository(database, { syncQueue });
-  const blocks = createBlockRepository(database);
+  const blocks = createBlockRepository(database, { syncQueue });
   const google = createGoogleController({
     auth: createGoogleAuth({
       credentialsPath: path.join(userDataDirectory, 'credentials.json'),

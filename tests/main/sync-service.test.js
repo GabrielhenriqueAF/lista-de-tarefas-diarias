@@ -73,6 +73,30 @@ describe('Google bidirectional sync', () => {
     expect(saved).toEqual([[9, 'g-9']]);
   });
 
+  it('pushes a queued one-time Block with its two reminders', async () => {
+    const saved = [];
+    const queue = {
+      pending: () => [{ id: 4, operation: 'upsert-block', payload: { id: 17 } }],
+      markDone: () => {}, markFailed: () => {}, getState: () => null, setState: () => {}
+    };
+    const sync = createSyncService({
+      calendarService: { ensureRoutineCalendar: async () => 'rotina-gabriel' },
+      google: {
+        insertEvent: async (_calendarId, event) => ({ data: { id: 'google-block-17', event } }),
+        listEvents: async () => ({ data: { items: [] } })
+      },
+      queue,
+      rules: {},
+      blocks: {
+        get: () => ({ id: 17, title: 'Simulado TOEFL', plannedStartAt: '2026-10-15T09:00:00', plannedEndAt: '2026-10-15T11:00:00', updatedAt: '2026-09-04T12:00:00Z', status: 'planned', googleEventId: null }),
+        setGoogleEventId: (id, googleEventId) => saved.push([id, googleEventId])
+      }
+    });
+
+    await expect(sync.syncNow()).resolves.toMatchObject({ pushed: 1 });
+    expect(saved).toEqual([[17, 'google-block-17']]);
+  });
+
   it('deletes a queued Google event and treats a missing remote event as already deleted', async () => {
     const calls = [];
     const completed = [];

@@ -1,4 +1,4 @@
-import { minutesBetween } from '../shared/domain.js';
+import { assertNonEmpty, assertSchedule, minutesBetween } from '../shared/domain.js';
 
 function mapBlock(row) {
   return {
@@ -19,13 +19,23 @@ function mapBlock(row) {
     finishReason: row.finish_reason,
     note: row.note,
     continuationPoint: row.continuation_point,
+    googleEventId: row.google_event_id,
+    googleRecurringEventId: row.google_recurring_event_id,
     realMinutes: row.started_at && row.finished_at ? minutesBetween(row.started_at, row.finished_at) : 0,
     updatedAt: row.updated_at
   };
 }
 
-export function createBlockRepository(database) {
+export function createBlockRepository(database, { syncQueue = null } = {}) {
   const findById = database.prepare('SELECT * FROM blocks WHERE id = ?');
+  const insertAdHoc = database.prepare(`
+    INSERT INTO blocks (activity_id, front_id, date, title, planned_start_at, planned_end_at, status, created_at, updated_at)
+    VALUES (@activityId, @frontId, @date, @title, @plannedStartAt, @plannedEndAt, 'planned', @timestamp, @timestamp)
+  `);
+  const insertChecklistItem = database.prepare(`
+    INSERT INTO block_checklist_items (block_id, position, title)
+    VALUES (@blockId, @position, @title)
+  `);
   const updateStarted = database.prepare(`
     UPDATE blocks SET started_at = @startedAt, status = 'in_progress', updated_at = @updatedAt
     WHERE id = @id
@@ -63,6 +73,13 @@ export function createBlockRepository(database) {
     UPDATE blocks SET status = 'cancelled', updated_at = @updatedAt
     WHERE id = @id
   `);
+  const saveGoogleEventId = database.prepare('UPDATE blocks SET google_event_id = ? WHERE id = ?');
+
+  function assertAdHocBlock({ title, date, startTime, endTime }) {
+    assertNonEmpty(title, 'Título');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('Escolha uma data válida.');
+    assertSchedule({ weekday: 1, startTime, endTime });
+  }
 
   const finish = database.transaction(({ id, finishedAt, finishReason, note = '', continuationPoint = '' }) => {
     const block = findById.get(id);
@@ -87,6 +104,29 @@ export function createBlockRepository(database) {
   });
 
   return {
+    createAdHoc({ activityId, frontId = null, title, date, startTime, endTime, checklistTemplate = [] }) {
+      assertAdHocBlock({ title, date, startTime, endTime });
+      return database.transaction(() => {
+        const timestamp = new Date().toISOString();
+        const result = insertAdHoc.run({
+          activityId,
+          frontId,
+          date,
+          title: title.trim(),
+          plannedStartAt: `${date}T${startTime}:00`,
+          plannedEndAt: `${date}T${endTime}:00`,
+          timestamp
+        });
+        checklistTemplate.forEach((item, position) => {
+          const title = String(item).trim();
+          if (title) insertChecklistItem.run({ blockId: result.lastInsertRowid, position, title });
+        });
+        const block = mapBlock(findById.get(result.lastInsertRowid));
+        syncQueue?.enqueue('upsert-block', { id: block.id });
+        return block;
+      })();
+    },
+
     start({ id, startedAt }) {
       const block = findById.get(id);
       if (!block || block.status !== 'planned') {
@@ -101,6 +141,11 @@ export function createBlockRepository(database) {
     get(id) {
       const block = findById.get(id);
       return block ? mapBlock(block) : null;
+    },
+
+    setGoogleEventId(id, googleEventId) {
+      saveGoogleEventId.run(googleEventId, id);
+      return mapBlock(findById.get(id));
     },
 
     listToday(date) {

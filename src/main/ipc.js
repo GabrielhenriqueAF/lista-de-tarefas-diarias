@@ -68,6 +68,12 @@ export function createHandlers(repositories) {
       if (typeof input.startedAt !== 'string') throw new Error('Horário de início obrigatório.');
       return repositories.blocks.start(input);
     },
+    async createAdHocBlock(input) {
+      requireId(input?.activityId, 'Atividade');
+      if (input?.frontId !== null && input?.frontId !== undefined) requireId(input.frontId, 'Frente');
+      if (typeof input?.date !== 'string') throw new Error('Data obrigatória.');
+      return repositories.blocks.createAdHoc(input);
+    },
     async finishBlock(input) {
       requireId(input?.id, 'Bloco');
       if (typeof input.finishedAt !== 'string') throw new Error('Horário de fim obrigatório.');
@@ -141,6 +147,7 @@ export function registerIpcHandlers(ipcMain, repositories) {
     'rules:update': (_event, input) => handlers.updateRule(input),
     'rules:list-week': (_event, weekStart) => handlers.listWeek(weekStart),
     'blocks:start': (_event, input) => handlers.startBlock(input),
+    'blocks:create-ad-hoc': (_event, input) => handlers.createAdHocBlock(input),
     'blocks:finish': (_event, input) => handlers.finishBlock(input),
     'blocks:list-today': (_event, date) => handlers.listToday(date),
     'blocks:list-history': (_event, frontId) => handlers.listHistory(frontId),

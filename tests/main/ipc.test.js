@@ -45,4 +45,14 @@ describe('routine IPC handlers', () => {
     await expect(handlers.listArchivedActivities()).resolves.toMatchObject([{ id: 2 }]);
     expect(calls).toEqual([['archive', 2], ['restore', 2], ['purge', 2]]);
   });
+
+  it('creates a one-time Block through the explicit IPC channel', async () => {
+    const received = [];
+    const handlers = createHandlers({
+      blocks: { createAdHoc: (input) => { received.push(input); return { id: 9, ...input }; } }
+    });
+
+    await expect(handlers.createAdHocBlock({ activityId: 1, title: 'Dentista', date: '2026-10-15' })).resolves.toMatchObject({ id: 9 });
+    expect(received).toEqual([{ activityId: 1, title: 'Dentista', date: '2026-10-15' }]);
+  });
 });

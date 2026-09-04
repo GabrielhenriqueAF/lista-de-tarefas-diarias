@@ -1,4 +1,4 @@
-import { eventForRule } from './calendar-service.js';
+import { eventForBlock, eventForRule } from './calendar-service.js';
 
 function responseData(response) {
   return response?.data ?? response;
@@ -15,6 +15,18 @@ export function createSyncService({ calendarService, google, queue, rules, block
         await google.deleteEvent(calendarId, operation.payload.googleEventId);
       } catch (error) {
         if (!isNotFound(error)) throw error;
+      }
+      return;
+    }
+    if (operation.operation === 'upsert-block') {
+      const block = blocks.get(operation.payload.id);
+      if (!block || block.status === 'cancelled') return;
+      const event = eventForBlock(block);
+      if (block.googleEventId) {
+        await google.patchEvent(calendarId, block.googleEventId, event);
+      } else {
+        const created = responseData(await google.insertEvent(calendarId, event));
+        blocks.setGoogleEventId(block.id, created.id);
       }
       return;
     }

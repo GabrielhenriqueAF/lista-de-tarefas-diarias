@@ -201,6 +201,31 @@ describe('recurrence rules and Blocks', () => {
 });
 
 describe('Block execution', () => {
+  it('creates a one-time Block with its checklist and Google sync operation', async () => {
+    const { createActivityRepository } = await import('../../src/main/activity-repository.js');
+    const { createBlockRepository } = await import('../../src/main/block-repository.js');
+    const { createSyncRepository } = await import('../../src/main/sync-repository.js');
+    const database = createDatabase(':memory:');
+    const activities = createActivityRepository(database);
+    const queue = createSyncRepository(database);
+    const blocks = createBlockRepository(database, { syncQueue: queue });
+    const english = activities.create({ name: 'Inglês', category: 'Estudo', color: '#2563eb' });
+
+    const block = blocks.createAdHoc({
+      activityId: english.id,
+      title: 'Simulado TOEFL',
+      date: '2026-10-15',
+      startTime: '09:00',
+      endTime: '11:00',
+      checklistTemplate: ['Separar material', 'Fazer simulado']
+    });
+
+    expect(block).toMatchObject({ recurrenceRuleId: null, date: '2026-10-15', status: 'planned' });
+    expect(blocks.listChecklist(block.id).map((item) => item.title)).toEqual(['Separar material', 'Fazer simulado']);
+    expect(queue.pending()).toMatchObject([{ operation: 'upsert-block', payload: { id: block.id } }]);
+    database.close();
+  });
+
   it('records 142 real minutes and the next Writing step', async () => {
     const { createActivityRepository } = await import('../../src/main/activity-repository.js');
     const { createFrontRepository } = await import('../../src/main/front-repository.js');
