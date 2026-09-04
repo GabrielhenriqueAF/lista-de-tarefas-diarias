@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createActivityRepository } from './activity-repository.js';
@@ -15,25 +15,17 @@ import { createSettingsRepository } from './settings-repository.js';
 import { createTemplateRepository } from './template-repository.js';
 import { createTrackRepository } from './track-repository.js';
 import { createSyncRepository } from './sync-repository.js';
+import { desktopWindowOptions } from './window-options.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 
 function createWindow() {
-  const window = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 980,
-    minHeight: 680,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(directory, '../preload.js')
-    }
-  });
+  const window = new BrowserWindow(desktopWindowOptions(path.join(directory, '../preload.js')));
   window.loadFile(path.join(directory, '../renderer/index.html'));
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   const userDataDirectory = app.getPath('userData');
   const databasePath = path.join(userDataDirectory, 'lista-de-tarefas-diarias.db');
   const backupDirectory = path.join(userDataDirectory, 'backups');
