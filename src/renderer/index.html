@@ -7,24 +7,22 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <header class="topbar">
-      <section class="brand">
-        <p class="eyebrow">ROTINA PESSOAL</p>
-        <h1>Rotina Gabriel</h1>
-      </section>
-      <section class="topbar-actions">
-        <nav aria-label="Áreas do aplicativo">
-          <button data-tab="week" type="button">Minha semana</button>
-          <button data-tab="today" type="button">Hoje</button>
-          <button data-tab="progress" type="button">Progresso</button>
-          <button data-tab="history" type="button">Histórico</button>
-          <button data-tab="settings" type="button">Configurações</button>
-        </nav>
-        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Alternar tema"></button>
+    <header class="titlebar">
+      <div class="app-mark" aria-label="Rotina Gabriel"><i></i><span>Rotina Gabriel</span></div>
+      <nav class="tabs" aria-label="Áreas do aplicativo">
+        <button data-tab="today" type="button">Hoje</button>
+        <button data-tab="week" type="button">Semana</button>
+        <button data-tab="history" type="button">Frentes</button>
+        <button data-tab="progress" type="button">Progresso</button>
+        <button data-tab="settings" type="button">Ajustes</button>
+      </nav>
+      <section class="titlebar-end">
+        <span id="sync-indicator" class="sync-indicator" title="Estado da sincronização"><i></i>Não sincronizado</span>
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="Alternar tema"></button>
       </section>
     </header>
-    <p id="app-status" class="app-status" role="status" aria-live="polite"></p>
     <main id="app" aria-live="polite"></main>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
     <script type="module" src="app.js"></script>
   </body>
 </html>

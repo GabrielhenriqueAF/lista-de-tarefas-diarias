@@ -15,12 +15,18 @@ const WEEKDAYS = [
   ['0', 'Domingo']
 ];
 
-const state = {
-  tab: 'week',
-  theme: 'system',
-  progressFilter: monthFilter(),
-  historyFrontId: null
-};
+export function initialUiState() {
+  return {
+    tab: 'today',
+    theme: 'system',
+    weekMode: 'calendar',
+    progressFilter: monthFilter(),
+    historyFrontId: null
+  };
+}
+
+const state = initialUiState();
+let toastTimeout;
 
 function monthFilter(now = new Date()) {
   const year = now.getFullYear();
@@ -49,11 +55,34 @@ export function applyTheme(theme) {
   document.documentElement.dataset.theme = resolvedTheme(theme);
 }
 
+export function showToast(message, type = 'success') {
+  const toast = document.querySelector('#toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.dataset.type = type;
+  toast.hidden = false;
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.hidden = true;
+  }, 3000);
+}
+
 function setStatus(message, type = 'success') {
-  const status = document.querySelector('#app-status');
-  if (!status) return;
-  status.textContent = message;
-  status.dataset.type = type;
+  showToast(message, type);
+}
+
+function relativeSyncTime(lastSyncedAt) {
+  if (!lastSyncedAt) return 'Não sincronizado';
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(lastSyncedAt).getTime()) / 60000));
+  if (minutes === 0) return 'Sincronizado agora';
+  return `Sincronizado há ${minutes} min`;
+}
+
+export function renderSyncIndicator(googleState = {}) {
+  const indicator = document.querySelector('#sync-indicator');
+  if (!indicator) return;
+  indicator.lastChild.textContent = relativeSyncTime(googleState.lastSyncedAt);
+  indicator.dataset.state = googleState.connected ? 'connected' : 'idle';
 }
 
 function activityOptions(select, activities, emptyText = 'Selecione uma atividade') {
@@ -271,6 +300,7 @@ async function renderHistory() {
 
 async function renderSettings() {
   const googleState = await applicationApi().google.status();
+  renderSyncIndicator(googleState);
   renderSettingsView(document.querySelector('#app'), {
     theme: state.theme,
     calendarName: googleState.calendarName,
@@ -279,11 +309,13 @@ async function renderSettings() {
     connected: googleState.connected,
     onConnect: async () => {
       await applicationApi().google.connect();
+      renderSyncIndicator(await applicationApi().google.status());
       setStatus('Conta Google conectada. Agora clique em Sincronizar com Google.');
       await renderCurrentView();
     },
     onSync: async () => {
       const result = await applicationApi().google.syncNow();
+      renderSyncIndicator(await applicationApi().google.status());
       setStatus(`Sincronizado: ${result.pushed} enviado(s), ${result.imported} importado(s).`);
       await renderCurrentView();
     }
@@ -297,7 +329,7 @@ function updateNavigation() {
   const toggle = document.querySelector('#theme-toggle');
   if (toggle) {
     const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    toggle.textContent = nextTheme === 'light' ? '☀️ Tema claro' : '🌙 Tema escuro';
+    toggle.textContent = nextTheme === 'light' ? '☀' : '◐';
     toggle.setAttribute('aria-label', `Ativar ${nextTheme}`);
   }
 }
@@ -317,6 +349,11 @@ async function initializeApplication() {
   if (!window.routineApi) return;
   state.theme = await applicationApi().settings.getTheme();
   applyTheme(state.theme);
+  try {
+    renderSyncIndicator(await applicationApi().google.status());
+  } catch {
+    renderSyncIndicator();
+  }
   document.querySelectorAll('[data-tab]').forEach((button) => {
     button.addEventListener('click', async () => {
       state.tab = button.dataset.tab;

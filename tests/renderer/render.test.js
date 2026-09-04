@@ -2,15 +2,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 let applyTheme;
+let initialUiState;
 let renderWeekView;
 let renderTodayView;
 let renderHistoryView;
 let renderSettingsView;
+let showToast;
 
 beforeEach(async () => {
   document.documentElement.removeAttribute('data-theme');
   document.body.innerHTML = '<main id="app"></main>';
-  ({ applyTheme } = await import('../../src/renderer/app.js'));
+  ({ applyTheme, initialUiState, showToast } = await import('../../src/renderer/app.js'));
   ({ renderWeekView } = await import('../../src/renderer/views/week-view.js'));
   ({ renderTodayView } = await import('../../src/renderer/views/today-view.js'));
   ({ renderHistoryView } = await import('../../src/renderer/views/history-view.js'));
@@ -18,6 +20,15 @@ beforeEach(async () => {
 });
 
 describe('routine renderer', () => {
+  it('uses Today as the initial tab and renders a transient toast region', () => {
+    document.body.innerHTML = '<header><button data-tab="today"></button></header><main id="app"></main><div id="toast" hidden></div>';
+
+    expect(initialUiState()).toMatchObject({ tab: 'today', weekMode: 'calendar' });
+    showToast('Bloco criado');
+
+    expect(document.querySelector('#toast')).toMatchObject({ hidden: false, textContent: 'Bloco criado' });
+  });
+
   it('applies the saved light theme and renders a weekday Writing Block', () => {
     applyTheme('light');
     renderWeekView(document.querySelector('#app'), {
