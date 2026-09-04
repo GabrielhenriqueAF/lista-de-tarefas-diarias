@@ -1,4 +1,5 @@
 import { element, labeled } from './views/dom.js';
+import { createDateRangePicker } from './date-range-picker.js';
 
 const WEEKDAYS = [[1, 'Seg'], [2, 'Ter'], [3, 'Qua'], [4, 'Qui'], [5, 'Sex'], [6, 'Sáb'], [0, 'Dom']];
 const COLORS = ['#6E8FB5', '#9C7AB7', '#CC8A5C', '#78A584', '#B97777', '#C9A85A'];
@@ -33,6 +34,9 @@ export function createBlockWizard({ root, onSubmit }) {
     currentPoint: '',
     nextStep: '',
     weekdays: new Set(),
+    periodMode: 'open',
+    startsOn: null,
+    endsOn: null,
     startTime: '08:00',
     endTime: '09:00',
     checklist: ''
@@ -96,6 +100,7 @@ export function createBlockWizard({ root, onSubmit }) {
     rememberRuleFields(dialog);
     if (state.weekdays.size === 0) return 'Escolha pelo menos um dia.';
     if (!state.startTime || !state.endTime || state.endTime <= state.startTime) return 'O término precisa ser depois do início.';
+    if (state.periodMode === 'range' && (!state.startsOn || !state.endsOn)) return 'Escolha o início e o fim do período.';
     return '';
   }
 
@@ -117,7 +122,9 @@ export function createBlockWizard({ root, onSubmit }) {
       weekdays: [...state.weekdays].sort((first, second) => first - second),
       startTime: state.startTime,
       endTime: state.endTime,
-      checklistTemplate: state.checklist.split('\n').map((item) => item.trim()).filter(Boolean)
+      checklistTemplate: state.checklist.split('\n').map((item) => item.trim()).filter(Boolean),
+      startsOn: state.periodMode === 'range' ? state.startsOn : null,
+      endsOn: state.periodMode === 'range' ? state.endsOn : null
     };
   }
 
@@ -209,10 +216,30 @@ export function createBlockWizard({ root, onSubmit }) {
       });
       days.append(button);
     });
+    const periodChoices = element('div', { className: 'wizard-choices', attributes: { 'aria-label': 'Duração da rotina' } });
+    [['open', 'Somente dias da semana'], ['range', 'Definir período']].forEach(([mode, label]) => {
+      const choice = controlButton(label, { wizardPeriodMode: mode }, state.periodMode === mode);
+      choice.addEventListener('click', () => {
+        state.periodMode = mode;
+        state.error = '';
+        render();
+      });
+      periodChoices.append(choice);
+    });
     const start = element('input', { name: 'startTime', type: 'time', value: state.startTime });
     const end = element('input', { name: 'endTime', type: 'time', value: state.endTime });
     const checklist = element('textarea', { name: 'checklistTemplate', value: state.checklist, placeholder: 'Subtarefas, uma por linha (opcional)' });
-    content.append(days, labeled('Início', start), labeled('Término', end), labeled('Checklist', checklist));
+    content.append(days, periodChoices);
+    if (state.periodMode === 'range') {
+      content.append(createDateRangePicker({
+        value: { startsOn: state.startsOn, endsOn: state.endsOn },
+        onChange: ({ startsOn, endsOn }) => {
+          state.startsOn = startsOn;
+          state.endsOn = endsOn;
+        }
+      }));
+    }
+    content.append(labeled('Início', start), labeled('Término', end), labeled('Checklist', checklist));
     dialog.append(content);
   }
 
@@ -274,7 +301,7 @@ export function createBlockWizard({ root, onSubmit }) {
         step: 1, activities, fronts, trigger, error: '', activityMode: activities.length ? 'existing' : 'create',
         activityId: activities.length ? String(activities[0].id) : '', activityName: '', category: '', color: COLORS[0],
         weeklyGoalMinutes: '', frontMode: 'skip', frontId: '', frontName: '', currentPoint: '', nextStep: '',
-        weekdays: new Set(), startTime: '08:00', endTime: '09:00', checklist: ''
+        weekdays: new Set(), periodMode: 'open', startsOn: null, endsOn: null, startTime: '08:00', endTime: '09:00', checklist: ''
       });
       render();
     },

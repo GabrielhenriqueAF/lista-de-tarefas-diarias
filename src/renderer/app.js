@@ -114,7 +114,9 @@ async function saveBlockDraft(draft) {
     weekdays: draft.weekdays,
     startTime: draft.startTime,
     endTime: draft.endTime,
-    checklistTemplate: draft.checklistTemplate
+    checklistTemplate: draft.checklistTemplate,
+    startsOn: draft.startsOn,
+    endsOn: draft.endsOn
   });
   showToast('Bloco adicionado à sua rotina.');
   await renderCurrentView();

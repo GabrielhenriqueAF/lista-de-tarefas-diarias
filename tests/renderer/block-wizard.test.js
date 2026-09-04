@@ -37,7 +37,28 @@ describe('block creation wizard', () => {
       weekdays: [1, 3],
       startTime: '05:00',
       endTime: '08:00',
-      checklistTemplate: []
+      checklistTemplate: [],
+      startsOn: null,
+      endsOn: null
     }]);
+  });
+
+  it('includes a selected weekday period in the rule draft', () => {
+    const drafts = [];
+    const wizard = createBlockWizard({ root: document.body, onSubmit: (draft) => drafts.push(draft) });
+    wizard.open({ activities: [], fronts: [], trigger: document.body });
+    document.querySelector('input[name="activityName"]').value = 'Inglês';
+    document.querySelector('[data-wizard-next]').click();
+    document.querySelector('[data-wizard-next]').click();
+    document.querySelector('[data-wizard-day="2"]').click();
+    document.querySelector('[data-wizard-period-mode="range"]').click();
+    document.querySelector('input[data-range-start]').value = '2026-09-08';
+    document.querySelector('input[data-range-start]').dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelector('input[data-range-end]').value = '2026-12-08';
+    document.querySelector('input[data-range-end]').dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelector('[data-wizard-submit]').click();
+
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ weekdays: [2], startsOn: '2026-09-08', endsOn: '2026-12-08' });
   });
 });
