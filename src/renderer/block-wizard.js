@@ -3,6 +3,7 @@ import { createDateRangePicker } from './date-range-picker.js';
 
 const WEEKDAYS = [[1, 'Seg'], [2, 'Ter'], [3, 'Qua'], [4, 'Qui'], [5, 'Sex'], [6, 'Sáb'], [0, 'Dom']];
 const COLORS = ['#6E8FB5', '#9C7AB7', '#CC8A5C', '#78A584', '#B97777', '#C9A85A'];
+const RECURRING_WEEKDAY_NAMES = { 0: 'domingo', 1: 'segunda-feira', 2: 'terça-feira', 3: 'quarta-feira', 4: 'quinta-feira', 5: 'sexta-feira', 6: 'sábado' };
 
 function controlButton(text, dataset, active = false) {
   return element('button', {
@@ -13,6 +14,19 @@ function controlButton(text, dataset, active = false) {
 
 function fieldValue(root, name, fallback = '') {
   return root.querySelector(`[name="${name}"]`)?.value ?? fallback;
+}
+
+function fullMonthsBetween(startsOn, endsOn) {
+  if (!startsOn || !endsOn) return 0;
+  const start = new Date(`${startsOn}T12:00:00`);
+  const end = new Date(`${endsOn}T12:00:00`);
+  const months = ((end.getFullYear() - start.getFullYear()) * 12) + end.getMonth() - start.getMonth();
+  return end.getDate() === start.getDate() ? months : 0;
+}
+
+function shortDate(value) {
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 export function createBlockWizard({ root, onSubmit }) {
@@ -128,6 +142,17 @@ export function createBlockWizard({ root, onSubmit }) {
     };
   }
 
+  function recurrenceSummary() {
+    const weekdays = [...state.weekdays].sort((first, second) => first - second).map((weekday) => RECURRING_WEEKDAY_NAMES[weekday]);
+    if (!weekdays.length) return 'Escolha os dias em que o bloco deve acontecer.';
+    const every = weekdays.length === 1 ? `Toda ${weekdays[0]}` : `Toda ${weekdays.slice(0, -1).join(', ')} e ${weekdays.at(-1)}`;
+    if (state.periodMode !== 'range') return `${every}, sem data de encerramento.`;
+    if (!state.startsOn || !state.endsOn) return `${every} — escolha o início e o fim do período.`;
+    const months = fullMonthsBetween(state.startsOn, state.endsOn);
+    if (months > 0) return `${every} por ${months} ${months === 1 ? 'mês' : 'meses'}.`;
+    return `${every}, de ${shortDate(state.startsOn)} até ${shortDate(state.endsOn)}.`;
+  }
+
   function heading(dialog) {
     const header = element('header', { className: 'wizard-header' });
     header.append(element('div', { text: '' }), element('button', { type: 'button', text: '×', className: 'icon-button', dataset: { wizardClose: '' }, attributes: { 'aria-label': 'Fechar' } }));
@@ -204,7 +229,7 @@ export function createBlockWizard({ root, onSubmit }) {
 
   function renderRule(dialog) {
     const content = element('section', { className: 'wizard-content' });
-    content.append(element('p', { className: 'muted', text: 'Escolha os dias e horários em que esse bloco se repete.' }));
+    content.append(element('p', { className: 'muted', text: 'Escolha em quais dias o bloco se repete e por quanto tempo a rotina vale.' }));
     const days = element('div', { className: 'weekday-picker', attributes: { 'aria-label': 'Dias da semana' } });
     WEEKDAYS.forEach(([weekday, label]) => {
       const button = controlButton(label, { wizardDay: weekday }, state.weekdays.has(weekday));
@@ -217,7 +242,7 @@ export function createBlockWizard({ root, onSubmit }) {
       days.append(button);
     });
     const periodChoices = element('div', { className: 'wizard-choices', attributes: { 'aria-label': 'Duração da rotina' } });
-    [['open', 'Somente dias da semana'], ['range', 'Definir período']].forEach(([mode, label]) => {
+    [['open', 'Sem data para terminar'], ['range', 'Definir período']].forEach(([mode, label]) => {
       const choice = controlButton(label, { wizardPeriodMode: mode }, state.periodMode === mode);
       choice.addEventListener('click', () => {
         state.periodMode = mode;
@@ -229,16 +254,19 @@ export function createBlockWizard({ root, onSubmit }) {
     const start = element('input', { name: 'startTime', type: 'time', value: state.startTime });
     const end = element('input', { name: 'endTime', type: 'time', value: state.endTime });
     const checklist = element('textarea', { name: 'checklistTemplate', value: state.checklist, placeholder: 'Subtarefas, uma por linha (opcional)' });
-    content.append(days, periodChoices);
+    content.append(element('span', { className: 'field-label', text: 'Repetir em' }), days, element('span', { className: 'field-label', text: 'Duração' }), periodChoices);
     if (state.periodMode === 'range') {
       content.append(createDateRangePicker({
         value: { startsOn: state.startsOn, endsOn: state.endsOn },
         onChange: ({ startsOn, endsOn }) => {
           state.startsOn = startsOn;
           state.endsOn = endsOn;
+          state.error = '';
+          render();
         }
       }));
     }
+    content.append(element('p', { className: 'recurrence-summary', text: recurrenceSummary(), attributes: { 'data-recurrence-summary': '' } }));
     content.append(labeled('Início', start), labeled('Término', end), labeled('Checklist', checklist));
     dialog.append(content);
   }

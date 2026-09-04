@@ -61,4 +61,17 @@ describe('block creation wizard', () => {
     expect(drafts).toHaveLength(1);
     expect(drafts[0]).toMatchObject({ weekdays: [2], startsOn: '2026-09-08', endsOn: '2026-12-08' });
   });
+
+  it('makes a single weekday within six months explicit to the user', () => {
+    const wizard = createBlockWizard({ root: document.body, onSubmit: () => {} });
+    wizard.open({ activities: [], fronts: [], trigger: document.body });
+    document.querySelector('input[name="activityName"]').value = 'Inglês';
+    document.querySelector('[data-wizard-next]').click();
+    document.querySelector('[data-wizard-next]').click();
+    document.querySelector('[data-wizard-day="2"]').click();
+    document.querySelector('[data-wizard-period-mode="range"]').click();
+    document.querySelector('[data-range-preset="6-months"]').click();
+
+    expect(document.querySelector('[data-recurrence-summary]').textContent).toMatch(/Toda terça-feira por 6 meses/i);
+  });
 });
