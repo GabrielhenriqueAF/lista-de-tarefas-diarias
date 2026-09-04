@@ -139,6 +139,18 @@ describe('routine renderer', () => {
     expect(created).toEqual([{ position: 1, title: 'Capítulo 2' }]);
   });
 
+  it('renders Frentes as compact continuity rows and keeps the learning Track action', () => {
+    renderHistoryView(document.querySelector('#app'), {
+      activities: [{ id: 1, name: 'Inglês', color: '#6E8FB5' }],
+      fronts: [{ id: 3, activityId: 1, name: 'Writing', currentPoint: 'Parágrafo 2', nextStep: 'Conclusão' }],
+      selectedFrontId: 3,
+      selectedFront: { id: 3, activityId: 1, name: 'Writing', currentPoint: 'Parágrafo 2', nextStep: 'Conclusão' },
+      blocks: [], trackItems: [], onFrontChange: () => {}, onTrackComplete: () => {}, onTrackCreate: () => {}
+    });
+
+    expect(document.querySelector('[data-front-row]')).not.toBeNull();
+  });
+
   it('renders a Google sync button and Rotina Gabriel state', () => {
     renderSettingsView(document.querySelector('#app'), {
       calendarName: 'Rotina Gabriel',
@@ -150,5 +162,13 @@ describe('routine renderer', () => {
 
     expect(document.querySelector('[data-action="sync-google"]')).not.toBeNull();
     expect(document.body.textContent).toContain('Rotina Gabriel');
+  });
+
+  it('renders Google sync as a settings row instead of a full task card', () => {
+    renderSettingsView(document.querySelector('#app'), {
+      calendarName: 'Rotina Gabriel', configured: true, connected: true, theme: 'dark'
+    });
+
+    expect(document.querySelector('[data-setting="google"] [data-action="sync-google"]')).not.toBeNull();
   });
 });

@@ -4,6 +4,14 @@ function readableDate(value) {
   return value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Ainda não sincronizado';
 }
 
+function settingRow(name, title, description) {
+  const row = element('article', { className: 'setting-row', dataset: { setting: name } });
+  const copy = element('div');
+  copy.append(element('h3', { text: title }), element('p', { className: 'muted', text: description }));
+  row.append(copy);
+  return row;
+}
+
 export function renderSettingsView(root, {
   theme,
   databaseLocation,
@@ -14,38 +22,34 @@ export function renderSettingsView(root, {
   onConnect = async () => {},
   onSync = async () => {}
 }) {
-  const section = element('section');
-  section.append(element('h2', { text: 'Configurações' }), element('p', { className: 'muted', text: 'Preferências locais, backup e calendário Google.' }));
+  const section = element('section', { className: 'settings-view' });
+  const heading = element('header', { className: 'view-heading' });
+  const title = element('div');
+  title.append(element('p', { className: 'eyebrow', text: 'APLICATIVO' }), element('h1', { text: 'Ajustes' }), element('p', { className: 'muted', text: 'Preferências locais, backup e calendário Google.' }));
+  heading.append(title);
+  section.append(heading);
 
-  const persistence = element('article', { className: 'task-card' });
-  persistence.append(
-    element('h3', { text: 'Persistência local' }),
-    element('p', { text: 'Seus dados ficam no SQLite e uma cópia de segurança é criada uma vez por dia.' }),
-    element('p', { className: 'muted', text: databaseLocation ?? 'Local protegido do aplicativo.' })
-  );
+  const persistence = settingRow('storage', 'Seus dados', 'Tudo fica salvo no SQLite e uma cópia de segurança é criada uma vez por dia.');
+  persistence.append(element('span', { className: 'setting-value', text: databaseLocation ?? 'Local protegido do aplicativo' }));
+  const themeRow = settingRow('theme', 'Tema', `Tema atual: ${theme}`);
+  themeRow.append(element('span', { className: 'setting-value', text: 'Use o ícone de tema no topo' }));
+  const google = settingRow('google', 'Google Agenda', `Calendário ${calendarName} · ${readableDate(lastSyncedAt)}`);
 
-  const themeCard = element('article', { className: 'task-card' });
-  themeCard.append(element('h3', { text: 'Tema' }), element('p', { text: `Tema atual: ${theme}` }));
-
-  const googleCard = element('article', { className: 'task-card' });
-  googleCard.append(
-    element('h3', { text: 'Google Agenda' }),
-    element('p', { text: `Calendário: ${calendarName}` }),
-    element('p', { text: `Última sincronização: ${readableDate(lastSyncedAt)}` })
-  );
   if (!configured) {
-    googleCard.append(element('p', { className: 'muted', text: 'Adicione as credenciais OAuth do Google para conectar sua conta.' }));
+    google.append(element('span', { className: 'setting-value', text: 'Adicione as credenciais OAuth para conectar.' }));
   } else if (!connected) {
-    const connect = element('button', { type: 'button', text: 'Conectar ao Google', dataset: { action: 'connect-google' } });
+    const connect = element('button', { type: 'button', text: 'Conectar Google', className: 'btn-primary', dataset: { action: 'connect-google' } });
     connect.addEventListener('click', async () => onConnect());
-    googleCard.append(connect);
+    google.append(connect);
   } else {
-    googleCard.append(element('p', { className: 'muted', text: 'Conta conectada. Os eventos usam lembretes de 1 hora e 10 minutos.' }));
-    const sync = element('button', { type: 'button', text: 'Sincronizar com Google', dataset: { action: 'sync-google' } });
+    const actions = element('div', { className: 'setting-actions' });
+    actions.append(element('span', { className: 'setting-value', text: 'Conta conectada · lembretes de 1 h e 10 min' }));
+    const sync = element('button', { type: 'button', text: 'Sincronizar', className: 'btn-primary', dataset: { action: 'sync-google' } });
     sync.addEventListener('click', async () => onSync());
-    googleCard.append(sync);
+    actions.append(sync);
+    google.append(actions);
   }
 
-  section.append(persistence, themeCard, googleCard);
+  section.append(persistence, themeRow, google);
   root.replaceChildren(section);
 }

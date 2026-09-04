@@ -191,13 +191,14 @@ async function renderProgress() {
 
 async function renderHistory() {
   const root = document.querySelector('#app');
-  const { fronts } = await loadRoutineData();
+  const { activities, fronts } = await loadRoutineData();
   if (!state.historyFrontId && fronts.length) state.historyFrontId = fronts[0].id;
   const selectedFront = fronts.find((front) => front.id === state.historyFrontId) ?? null;
   const [blocks, trackItems] = selectedFront
     ? await Promise.all([applicationApi().blocks.listHistory(selectedFront.id), applicationApi().track.list(selectedFront.id)])
     : [[], []];
   renderHistoryView(root, {
+    activities,
     fronts,
     selectedFrontId: state.historyFrontId,
     selectedFront,

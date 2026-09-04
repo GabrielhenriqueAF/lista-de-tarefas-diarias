@@ -2,10 +2,14 @@ import { element, emptyState, formatMinutes, labeled } from './dom.js';
 import { renderBarChart, renderLineChart } from './chart-view.js';
 
 export function renderProgressView(root, { activities = [], fronts = [], filter, report, onFilter }) {
-  const section = element('section');
-  section.append(element('h2', { text: 'Progresso' }), element('p', { className: 'muted', text: 'Horas reais, consistência e aderência de horário.' }));
+  const section = element('section', { className: 'progress-view' });
+  const heading = element('header', { className: 'view-heading' });
+  const title = element('div');
+  title.append(element('p', { className: 'eyebrow', text: 'RELATÓRIOS' }), element('h1', { text: 'Progresso' }), element('p', { className: 'muted', text: 'Horas reais, consistência e aderência de horário.' }));
+  heading.append(title);
+  section.append(heading);
 
-  const form = element('form', { className: 'filter-grid' });
+  const form = element('form', { className: 'filter-row' });
   const activity = element('select', { name: 'activityId' });
   activity.append(element('option', { value: '', text: 'Todas as atividades' }));
   activities.forEach((item) => {
@@ -23,7 +27,7 @@ export function renderProgressView(root, { activities = [], fronts = [], filter,
   const from = element('input', { type: 'date', name: 'from', value: filter.from });
   const to = element('input', { type: 'date', name: 'to', value: filter.to });
   form.append(labeled('Atividade', activity), labeled('Frente', front), labeled('De', from), labeled('Até', to));
-  form.append(element('button', { type: 'submit', text: 'Atualizar' }));
+  form.append(element('button', { type: 'submit', text: 'Atualizar', className: 'btn-primary' }));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     onFilter({ activityId: activity.value ? Number(activity.value) : null, frontId: front.value ? Number(front.value) : null, from: from.value, to: to.value });
