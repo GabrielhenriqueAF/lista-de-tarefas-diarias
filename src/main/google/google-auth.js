@@ -5,6 +5,24 @@ import { google } from 'googleapis';
 
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
 
+export function encryptGoogleToken(tokens, safeStorage) {
+  if (!safeStorage?.isEncryptionAvailable?.()) {
+    throw new Error('O cofre seguro do Windows não está disponível para proteger o token Google.');
+  }
+  const encrypted = safeStorage.encryptString(JSON.stringify(tokens)).toString('base64');
+  return JSON.stringify({ version: 1, encrypted }, null, 2);
+}
+
+export function decryptGoogleToken(contents, safeStorage) {
+  const stored = JSON.parse(contents);
+  if (!stored.encrypted) return { tokens: stored, isLegacy: true };
+  if (!safeStorage?.isEncryptionAvailable?.()) {
+    throw new Error('O cofre seguro do Windows não está disponível para ler o token Google.');
+  }
+  const decrypted = safeStorage.decryptString(Buffer.from(stored.encrypted, 'base64'));
+  return { tokens: JSON.parse(decrypted), isLegacy: false };
+}
+
 function credentialsFromFile(credentialsPath) {
   const contents = JSON.parse(readFileSync(credentialsPath, 'utf8'));
   const credentials = contents.installed ?? contents.web;
@@ -49,7 +67,7 @@ function waitForAuthorizationCode(server) {
   });
 }
 
-export function createGoogleAuth({ credentialsPath, tokenPath, openExternal, fileExists = existsSync }) {
+export function createGoogleAuth({ credentialsPath, tokenPath, openExternal, safeStorage, fileExists = existsSync }) {
   function loadCredentials() {
     if (!fileExists(credentialsPath)) {
       throw new Error('Credenciais Google não encontradas. Adicione credentials.json em Configurações.');
@@ -66,7 +84,11 @@ export function createGoogleAuth({ credentialsPath, tokenPath, openExternal, fil
     if (!fileExists(tokenPath)) {
       throw new Error('Conecte sua conta do Google antes de sincronizar.');
     }
-    client.setCredentials(JSON.parse(readFileSync(tokenPath, 'utf8')));
+    const stored = decryptGoogleToken(readFileSync(tokenPath, 'utf8'), safeStorage);
+    if (stored.isLegacy) {
+      writeFileSync(tokenPath, encryptGoogleToken(stored.tokens, safeStorage), 'utf8');
+    }
+    client.setCredentials(stored.tokens);
     return client;
   }
 
@@ -94,7 +116,7 @@ export function createGoogleAuth({ credentialsPath, tokenPath, openExternal, fil
         const code = await codePromise;
         const { tokens } = await client.getToken(code);
         mkdirSync(path.dirname(tokenPath), { recursive: true });
-        writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), 'utf8');
+        writeFileSync(tokenPath, encryptGoogleToken(tokens, safeStorage), 'utf8');
         client.setCredentials(tokens);
         return this.status();
       } finally {

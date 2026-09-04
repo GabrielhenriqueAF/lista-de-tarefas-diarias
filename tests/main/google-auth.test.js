@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { createGoogleAuth } from '../../src/main/google/google-auth.js';
+import { createGoogleAuth, decryptGoogleToken, encryptGoogleToken } from '../../src/main/google/google-auth.js';
 import { createGoogleAdapter } from '../../src/main/google/google-adapter.js';
 
 describe('Google OAuth configuration', () => {
+  it('encrypts OAuth tokens with the Windows secure storage and reads them back', () => {
+    const safeStorage = {
+      isEncryptionAvailable: () => true,
+      encryptString: (value) => Buffer.from(`protected:${value}`, 'utf8'),
+      decryptString: (value) => Buffer.from(value).toString('utf8').replace(/^protected:/, '')
+    };
+    const tokens = { access_token: 'access-secret', refresh_token: 'refresh-secret' };
+
+    const stored = encryptGoogleToken(tokens, safeStorage);
+
+    expect(stored).not.toContain('refresh-secret');
+    expect(decryptGoogleToken(stored, safeStorage)).toEqual({ tokens, isLegacy: false });
+  });
+
+  it('recognizes an existing plaintext token so it can be migrated safely', () => {
+    const tokens = { refresh_token: 'old-token' };
+
+    expect(decryptGoogleToken(JSON.stringify(tokens), { isEncryptionAvailable: () => true })).toEqual({ tokens, isLegacy: true });
+  });
+
   it('stores the OAuth token under application data', () => {
     const auth = createGoogleAuth({
       credentialsPath: 'C:/app/credentials.json',

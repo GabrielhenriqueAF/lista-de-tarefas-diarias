@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createActivityRepository } from './activity-repository.js';
@@ -42,6 +42,7 @@ app.whenReady().then(() => {
     auth: createGoogleAuth({
       credentialsPath: path.join(userDataDirectory, 'credentials.json'),
       tokenPath: path.join(userDataDirectory, 'google-token.json'),
+      safeStorage,
       openExternal: (url) => shell.openExternal(url)
     }),
     settings,
