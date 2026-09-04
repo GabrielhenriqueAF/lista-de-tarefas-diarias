@@ -40,9 +40,15 @@ describe('preload bridge', () => {
     }));
     await expect(exposedApi.settings.getTheme()).resolves.toEqual({ channel: 'settings:get-theme', value: undefined });
     await expect(exposedApi.activities.create({ name: 'Inglês' })).resolves.toEqual({ channel: 'activities:create', value: { name: 'Inglês' } });
+    await expect(exposedApi.activities.listArchived()).resolves.toEqual({ channel: 'activities:list-archived', value: undefined });
+    await expect(exposedApi.activities.restore(2)).resolves.toEqual({ channel: 'activities:restore', value: 2 });
+    await expect(exposedApi.activities.purge(2)).resolves.toEqual({ channel: 'activities:purge', value: 2 });
     expect(calls).toEqual([
       { channel: 'settings:get-theme', value: undefined },
-      { channel: 'activities:create', value: { name: 'Inglês' } }
+      { channel: 'activities:create', value: { name: 'Inglês' } },
+      { channel: 'activities:list-archived', value: undefined },
+      { channel: 'activities:restore', value: 2 },
+      { channel: 'activities:purge', value: 2 }
     ]);
   });
 });

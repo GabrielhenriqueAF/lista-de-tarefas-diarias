@@ -27,4 +27,22 @@ describe('routine IPC handlers', () => {
     await expect(handlers.syncGoogle()).resolves.toEqual({ lastSyncedAt: '2026-09-03T12:00:00Z' });
     expect(calls).toEqual(['connect', 'sync']);
   });
+
+  it('routes archived activity lifecycle through the Google-aware controller', async () => {
+    const calls = [];
+    const handlers = createHandlers({
+      activities: { listArchived: () => [{ id: 2, name: 'Inglês', active: false }] },
+      google: {
+        archiveActivity: async (id) => { calls.push(['archive', id]); return { id, active: false }; },
+        restoreActivity: async (id) => { calls.push(['restore', id]); return { id, active: true }; },
+        purgeActivity: async (id) => { calls.push(['purge', id]); return { id }; }
+      }
+    });
+
+    await expect(handlers.archiveActivity(2)).resolves.toMatchObject({ active: false });
+    await expect(handlers.restoreActivity(2)).resolves.toMatchObject({ active: true });
+    await expect(handlers.purgeActivity(2)).resolves.toEqual({ id: 2 });
+    await expect(handlers.listArchivedActivities()).resolves.toMatchObject([{ id: 2 }]);
+    expect(calls).toEqual([['archive', 2], ['restore', 2], ['purge', 2]]);
+  });
 });

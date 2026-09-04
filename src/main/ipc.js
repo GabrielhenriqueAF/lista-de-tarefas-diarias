@@ -21,10 +21,21 @@ export function createHandlers(repositories) {
     },
     async archiveActivity(id) {
       requireId(id, 'Atividade');
-      return repositories.activities.archive(id);
+      return repositories.google.archiveActivity(id);
     },
     async listActivities() {
       return repositories.activities.listActive();
+    },
+    async listArchivedActivities() {
+      return repositories.activities.listArchived();
+    },
+    async restoreActivity(id) {
+      requireId(id, 'Atividade');
+      return repositories.google.restoreActivity(id);
+    },
+    async purgeActivity(id) {
+      requireId(id, 'Atividade');
+      return repositories.google.purgeActivity(id);
     },
     async createFront(input) {
       requireId(input?.activityId, 'Atividade');
@@ -120,6 +131,9 @@ export function registerIpcHandlers(ipcMain, repositories) {
     'activities:update': (_event, input) => handlers.updateActivity(input),
     'activities:archive': (_event, id) => handlers.archiveActivity(id),
     'activities:list': () => handlers.listActivities(),
+    'activities:list-archived': () => handlers.listArchivedActivities(),
+    'activities:restore': (_event, id) => handlers.restoreActivity(id),
+    'activities:purge': (_event, id) => handlers.purgeActivity(id),
     'fronts:create': (_event, input) => handlers.createFront(input),
     'fronts:update': (_event, input) => handlers.updateFront(input),
     'fronts:list': (_event, activityId) => handlers.listFronts(activityId),

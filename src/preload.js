@@ -7,7 +7,10 @@ contextBridge.exposeInMainWorld('routineApi', {
     create: (input) => invoke('activities:create', input),
     update: (input) => invoke('activities:update', input),
     archive: (id) => invoke('activities:archive', id),
-    list: () => invoke('activities:list')
+    list: () => invoke('activities:list'),
+    listArchived: () => invoke('activities:list-archived'),
+    restore: (id) => invoke('activities:restore', id),
+    purge: (id) => invoke('activities:purge', id)
   },
   fronts: {
     create: (input) => invoke('fronts:create', input),
