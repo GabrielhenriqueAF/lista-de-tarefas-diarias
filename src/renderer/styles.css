@@ -171,6 +171,23 @@ textarea { min-height: 64px; line-height: 1.55; resize: vertical; }
 .status-completed { color: var(--success); background: var(--success-soft); }
 .status-in_progress { color: var(--accent); background: var(--accent-soft); }
 
+.today-view { max-width: 760px; }
+.today-empty { display: grid; gap: 8px; justify-items: start; }
+.current-block { position: relative; display: grid; gap: 8px; padding: 22px; border: 1px solid var(--task-color, var(--accent)); border-radius: var(--r-card); background: var(--surface-1); }
+.current-block::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px; border-radius: 3px 0 0 3px; background: var(--task-color, var(--accent)); }
+.focus-title { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; }
+.color-dot { width: 8px; height: 8px; border-radius: 50%; }
+.current-block > .status { position: absolute; top: 16px; right: 16px; }
+.current-block h2 { margin: 7px 0 0; font-size: 20px; }
+.elapsed { margin: 4px 0; color: var(--accent); font-size: 26px; font-weight: 600; }
+.day-agenda { position: relative; margin-top: 24px; border-top: 1px solid var(--line); }
+.agenda-label { margin: -9px 0 5px; width: fit-content; padding-right: 12px; background: var(--page); color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.agenda-row { display: grid; grid-template-columns: 104px 1fr auto auto; align-items: center; gap: 14px; min-height: 46px; padding: 8px 0 8px 12px; border-bottom: 1px solid var(--line); position: relative; }
+.agenda-row::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--task-color); }
+.agenda-row time { color: var(--text-3); font-size: 12px; }
+.agenda-row .muted { font-size: 12px; }
+.current-time-line { position: absolute; top: 25px; left: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.day-summary { margin: 14px 0 0; color: var(--text-2); font-size: 12px; }
 .today-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .task-card { border-left-color: var(--task-color, var(--accent)); }
 .finish-form { display: grid; gap: 8px; margin-top: 16px; }

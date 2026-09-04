@@ -96,6 +96,30 @@ describe('routine renderer', () => {
     expect(completed).toEqual([{ id: 4, completed: true }]);
   });
 
+  it('highlights the running Block before the compact day agenda', () => {
+    renderTodayView(document.querySelector('#app'), {
+      now: new Date('2026-09-08T06:00:00'),
+      blocks: [{
+        id: 14,
+        title: 'Inglês — Reading',
+        activityName: 'Inglês',
+        color: '#6E8FB5',
+        status: 'in_progress',
+        startedAt: '2026-09-08T05:10:00',
+        plannedStartAt: '2026-09-08T05:00:00',
+        plannedEndAt: '2026-09-08T08:00:00'
+      }],
+      checklists: { 14: [] },
+      onOpenCreate: () => {},
+      onStart: () => {},
+      onFinish: () => {},
+      onToggleChecklist: () => {}
+    });
+
+    expect(document.querySelector('[data-current-block]')).not.toBeNull();
+    expect(document.querySelector('[data-day-agenda]')).not.toBeNull();
+  });
+
   it('adds a new learning Track item beneath the selected Front', () => {
     const created = [];
     renderHistoryView(document.querySelector('#app'), {

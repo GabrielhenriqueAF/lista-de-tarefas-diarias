@@ -27,6 +27,7 @@ export function initialUiState() {
 
 const state = initialUiState();
 let toastTimeout;
+let todayRefreshInterval;
 
 function monthFilter(now = new Date()) {
   const year = now.getFullYear();
@@ -235,12 +236,14 @@ async function renderWeek() {
 
 async function renderToday() {
   const root = document.querySelector('#app');
-  const blocks = await applicationApi().blocks.listToday(dateOnly(new Date()));
+  const now = new Date();
+  const blocks = await applicationApi().blocks.listToday(dateOnly(now));
   const checklistRows = await Promise.all(blocks.map(async (block) => [block.id, await applicationApi().blocks.listChecklist(block.id)]));
   const checklists = Object.fromEntries(checklistRows);
   renderTodayView(root, {
     blocks,
     checklists,
+    now,
     onStart: async (block) => {
       await applicationApi().blocks.start({ id: block.id, startedAt: new Date().toISOString() });
       setStatus('Bloco iniciado. Quando quiser, finalize e registre seu avanço.');
@@ -342,11 +345,25 @@ function updateNavigation() {
   }
 }
 
+function updateTodayRefreshTimer() {
+  if (state.tab !== 'today') {
+    if (todayRefreshInterval) clearInterval(todayRefreshInterval);
+    todayRefreshInterval = null;
+    return;
+  }
+  if (!todayRefreshInterval) {
+    todayRefreshInterval = window.setInterval(() => {
+      renderCurrentView();
+    }, 30_000);
+  }
+}
+
 async function renderCurrentView() {
   try {
     const renderers = { week: renderWeek, today: renderToday, progress: renderProgress, history: renderHistory, settings: renderSettings };
     await renderers[state.tab]();
     updateNavigation();
+    updateTodayRefreshTimer();
   } catch (error) {
     document.querySelector('#app').replaceChildren(element('p', { className: 'empty', text: `Não foi possível carregar esta tela: ${error.message}` }));
     setStatus(error.message, 'error');
@@ -380,4 +397,7 @@ async function initializeApplication() {
 
 if (typeof window !== 'undefined') {
   document.addEventListener('DOMContentLoaded', initializeApplication);
+  window.addEventListener('beforeunload', () => {
+    if (todayRefreshInterval) clearInterval(todayRefreshInterval);
+  });
 }
