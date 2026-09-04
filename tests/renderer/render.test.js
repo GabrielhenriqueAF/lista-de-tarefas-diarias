@@ -5,6 +5,7 @@ let applyTheme;
 let initialUiState;
 let renderWeekView;
 let renderTodayView;
+let refreshElapsedTimers;
 let renderHistoryView;
 let renderSettingsView;
 let showToast;
@@ -14,7 +15,7 @@ beforeEach(async () => {
   document.body.innerHTML = '<main id="app"></main>';
   ({ applyTheme, initialUiState, showToast } = await import('../../src/renderer/app.js'));
   ({ renderWeekView } = await import('../../src/renderer/views/week-view.js'));
-  ({ renderTodayView } = await import('../../src/renderer/views/today-view.js'));
+  ({ renderTodayView, refreshElapsedTimers } = await import('../../src/renderer/views/today-view.js'));
   ({ renderHistoryView } = await import('../../src/renderer/views/history-view.js'));
   ({ renderSettingsView } = await import('../../src/renderer/views/settings-view.js'));
 });
@@ -137,6 +138,59 @@ describe('routine renderer', () => {
 
     expect(document.querySelector('[data-current-block]')).not.toBeNull();
     expect(document.querySelector('[data-day-agenda]')).not.toBeNull();
+  });
+
+  it('preserves the finish form draft when Today is rendered again', () => {
+    const drafts = {};
+    const block = {
+      id: 14,
+      title: 'Inglês — Reading',
+      status: 'in_progress',
+      startedAt: '2026-09-08T05:10:00',
+      plannedStartAt: '2026-09-08T05:00:00',
+      plannedEndAt: '2026-09-08T08:00:00'
+    };
+    const render = () => renderTodayView(document.querySelector('#app'), {
+      now: new Date('2026-09-08T06:00:00'),
+      blocks: [block], checklists: { 14: [] }, finishDrafts: drafts,
+      onStart: () => {}, onFinish: () => {}, onToggleChecklist: () => {},
+      onFinishDraftChange: ({ id, field, value }) => {
+        drafts[id] = { ...drafts[id], [field]: value };
+      }
+    });
+
+    render();
+    const reason = document.querySelector('select[name="finishReason"]');
+    const note = document.querySelector('textarea[name="note"]');
+    reason.value = 'fatigue';
+    reason.dispatchEvent(new Event('change', { bubbles: true }));
+    note.value = 'Terminei o capítulo 3 e anotei 12 palavras novas';
+    note.dispatchEvent(new Event('input', { bubbles: true }));
+    render();
+
+    expect(document.querySelector('select[name="finishReason"]').value).toBe('fatigue');
+    expect(document.querySelector('textarea[name="note"]').value).toBe('Terminei o capítulo 3 e anotei 12 palavras novas');
+  });
+
+  it('updates only the elapsed number without replacing the active finish form', () => {
+    renderTodayView(document.querySelector('#app'), {
+      now: new Date('2026-09-08T06:00:00'),
+      blocks: [{
+        id: 14, title: 'Inglês — Reading', status: 'in_progress', startedAt: '2026-09-08T05:10:00',
+        plannedStartAt: '2026-09-08T05:00:00', plannedEndAt: '2026-09-08T08:00:00'
+      }],
+      checklists: { 14: [] }, onStart: () => {}, onFinish: () => {}, onToggleChecklist: () => {}
+    });
+    const note = document.querySelector('textarea[name="note"]');
+    note.value = 'Rascunho preservado';
+    note.focus();
+
+    refreshElapsedTimers(document.querySelector('#app'), new Date('2026-09-08T06:05:00'));
+
+    expect(document.querySelector('textarea[name="note"]')).toBe(note);
+    expect(document.activeElement).toBe(note);
+    expect(note.value).toBe('Rascunho preservado');
+    expect(document.querySelector('[data-elapsed-started-at]').textContent).toBe('0h 55m');
   });
 
   it('adds a new learning Track item beneath the selected Front', () => {

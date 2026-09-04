@@ -1,12 +1,16 @@
 import { element, formatClock, formatMinutes } from './dom.js';
 
-function finishForm(block, onFinish) {
+function finishForm(block, draft, onFinish, onFinishDraftChange) {
   const form = element('form', { className: 'finish-form' });
   const reason = element('select', { name: 'finishReason' });
   [['goal_completed', 'Objetivo concluído'], ['fatigue', 'Cansaço'], ['interruption', 'Interrupção'], ['unexpected', 'Imprevisto'], ['other', 'Outro']]
     .forEach(([value, label]) => reason.append(element('option', { value, text: label })));
-  const note = element('textarea', { name: 'note', placeholder: 'O que você fez?' });
-  const continuation = element('textarea', { name: 'continuationPoint', placeholder: 'Onde continuar depois?' });
+  reason.value = draft.finishReason ?? 'goal_completed';
+  const note = element('textarea', { name: 'note', value: draft.note ?? '', placeholder: 'O que você fez?' });
+  const continuation = element('textarea', { name: 'continuationPoint', value: draft.continuationPoint ?? '', placeholder: 'Onde continuar depois?' });
+  reason.addEventListener('change', () => onFinishDraftChange({ id: block.id, field: 'finishReason', value: reason.value }));
+  note.addEventListener('input', () => onFinishDraftChange({ id: block.id, field: 'note', value: note.value }));
+  continuation.addEventListener('input', () => onFinishDraftChange({ id: block.id, field: 'continuationPoint', value: continuation.value }));
   form.append(
     element('label', { text: 'Motivo do encerramento' }), reason,
     element('label', { text: 'Avanço / nota' }), note,
@@ -56,7 +60,7 @@ function chooseFocusBlock(blocks, now) {
     ?? null;
 }
 
-function focusCard(block, items, { now, onStart, onFinish, onToggleChecklist }) {
+function focusCard(block, items, { now, onStart, onFinish, onToggleChecklist, finishDraft, onFinishDraftChange }) {
   const card = element('section', { className: 'current-block', attributes: { 'data-current-block': '' } });
   card.style.setProperty('--task-color', block.color ?? '#e0a33c');
   const started = block.startedAt ? `começou ${formatClock(block.startedAt)}` : `previsto ${formatClock(block.plannedStartAt)}`;
@@ -70,7 +74,7 @@ function focusCard(block, items, { now, onStart, onFinish, onToggleChecklist }) 
 
   if (block.status === 'in_progress') {
     const elapsed = Math.max(0, Math.floor((now.getTime() - new Date(block.startedAt).getTime()) / 60000));
-    card.append(element('p', { className: 'elapsed num', text: formatMinutes(elapsed) }));
+    card.append(element('p', { className: 'elapsed num', text: formatMinutes(elapsed), attributes: { 'data-elapsed-started-at': block.startedAt } }));
   }
   const blockChecklist = checklist(items, onToggleChecklist);
   if (blockChecklist) card.append(blockChecklist);
@@ -80,11 +84,19 @@ function focusCard(block, items, { now, onStart, onFinish, onToggleChecklist }) 
     button.addEventListener('click', () => onStart(block));
     card.append(button);
   } else if (block.status === 'in_progress') {
-    card.append(finishForm(block, onFinish));
+    card.append(finishForm(block, finishDraft, onFinish, onFinishDraftChange));
   } else if (block.status === 'completed') {
     card.append(element('p', { text: `Concluído: ${formatMinutes(block.realMinutes ?? 0)}` }));
   }
   return card;
+}
+
+export function refreshElapsedTimers(root, now = new Date()) {
+  root.querySelectorAll('[data-elapsed-started-at]').forEach((elapsed) => {
+    const startedAt = elapsed.getAttribute('data-elapsed-started-at');
+    const minutes = Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 60000));
+    elapsed.textContent = formatMinutes(minutes);
+  });
 }
 
 function agendaRow(block) {
@@ -106,7 +118,9 @@ export function renderTodayView(root, {
   onOpenCreate = () => {},
   onStart = () => {},
   onFinish = () => {},
-  onToggleChecklist = () => {}
+  onToggleChecklist = () => {},
+  finishDrafts = {},
+  onFinishDraftChange = () => {}
 }) {
   const section = element('section', { className: 'today-view' });
   const heading = element('header', { className: 'view-heading' });
@@ -129,7 +143,10 @@ export function renderTodayView(root, {
   }
 
   const focus = chooseFocusBlock(blocks, now);
-  section.append(focusCard(focus, checklists[focus.id] ?? [], { now, onStart, onFinish, onToggleChecklist }));
+  section.append(focusCard(focus, checklists[focus.id] ?? [], {
+    now, onStart, onFinish, onToggleChecklist,
+    finishDraft: finishDrafts[focus.id] ?? {}, onFinishDraftChange
+  }));
 
   const agenda = element('section', { className: 'day-agenda', attributes: { 'data-day-agenda': '', 'aria-label': 'Agenda de hoje' } });
   agenda.append(element('div', { className: 'agenda-label', text: 'A seguir' }));

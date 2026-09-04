@@ -4,7 +4,7 @@ import { createDangerConfirmDialog } from './danger-confirm-dialog.js';
 import { renderHistoryView } from './views/history-view.js';
 import { renderProgressView } from './views/progress-view.js';
 import { renderSettingsView } from './views/settings-view.js';
-import { renderTodayView } from './views/today-view.js';
+import { refreshElapsedTimers, renderTodayView } from './views/today-view.js';
 import { renderWeekView } from './views/week-view.js';
 
 export function initialUiState() {
@@ -14,7 +14,8 @@ export function initialUiState() {
     weekMode: 'calendar',
     selectedWeekStart: weekStart(),
     progressFilter: monthFilter(),
-    historyFrontId: null
+    historyFrontId: null,
+    finishDrafts: {}
   };
 }
 
@@ -191,6 +192,7 @@ async function renderToday() {
     blocks,
     checklists,
     now,
+    finishDrafts: state.finishDrafts,
     onOpenCreate: () => openBlockWizard(document.activeElement),
     onStart: async (block) => {
       await applicationApi().blocks.start({ id: block.id, startedAt: new Date().toISOString() });
@@ -199,8 +201,12 @@ async function renderToday() {
     },
     onFinish: async (input) => {
       await applicationApi().blocks.finish(input);
+      delete state.finishDrafts[input.id];
       setStatus('Bloco finalizado e o próximo passo foi salvo no histórico.');
       await renderCurrentView();
+    },
+    onFinishDraftChange: ({ id, field, value }) => {
+      state.finishDrafts[id] = { ...state.finishDrafts[id], [field]: value };
     },
     onToggleChecklist: async (input) => {
       await applicationApi().blocks.toggleChecklist(input);
@@ -329,8 +335,8 @@ function updateTodayRefreshTimer() {
   }
   if (!todayRefreshInterval) {
     todayRefreshInterval = window.setInterval(() => {
-      renderCurrentView();
-    }, 30_000);
+      refreshElapsedTimers(document.querySelector('#app'), new Date());
+    }, 1_000);
   }
 }
 
