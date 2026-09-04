@@ -133,11 +133,16 @@ function renderCalendar(weekStart, blocks) {
   return calendar;
 }
 
-export function renderWeekView(root, { weekStart, blocks = [], mode = 'calendar', onModeChange }) {
+export function renderWeekView(root, { weekStart, blocks = [], mode = 'calendar', onModeChange, onOpenCreate = () => {} }) {
   const heading = element('section', { className: 'view-heading' });
   const title = element('div');
   title.append(element('p', { className: 'eyebrow', text: 'ROTINA' }), element('h1', { text: 'Minha semana' }));
-  heading.append(title, modeSelector(mode, onModeChange));
+  const actions = element('div', { className: 'view-actions' });
+  actions.append(modeSelector(mode, onModeChange));
+  const create = element('button', { type: 'button', text: '+ Novo bloco', className: 'btn-primary', dataset: { action: 'open-create' } });
+  create.addEventListener('click', onOpenCreate);
+  actions.append(create);
+  heading.append(title, actions);
 
   const content = mode === 'table'
     ? renderTable(blocks)
