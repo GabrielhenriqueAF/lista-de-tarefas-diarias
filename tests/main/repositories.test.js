@@ -160,6 +160,44 @@ describe('recurrence rules and Blocks', () => {
 
     database.close();
   });
+
+  it('archives, restores and permanently purges an activity graph', async () => {
+    const { createActivityRepository } = await import('../../src/main/activity-repository.js');
+    const { createFrontRepository } = await import('../../src/main/front-repository.js');
+    const { createRoutineRepository } = await import('../../src/main/routine-repository.js');
+    const { createTrackRepository } = await import('../../src/main/track-repository.js');
+    const database = createDatabase(':memory:');
+    const activities = createActivityRepository(database);
+    const fronts = createFrontRepository(database);
+    const rules = createRoutineRepository(database);
+    const track = createTrackRepository(database);
+    const english = activities.create({ name: 'Inglês', category: 'Estudo', color: '#2563eb' });
+    const writing = fronts.create({ activityId: english.id, name: 'Writing' });
+    const rule = rules.create({ activityId: english.id, frontId: writing.id, title: 'Inglês — Writing', weekdays: [2], startTime: '05:00', endTime: '08:00' });
+    const [block] = rules.ensureBlocksForWeek('2026-09-07');
+    track.create({ frontId: writing.id, position: 1, title: 'Capítulo 1' });
+
+    const archived = activities.archive(english.id, '2026-09-08');
+    expect(archived.ruleEventIds).toEqual([]);
+    expect(activities.listActive()).toEqual([]);
+    expect(activities.listArchived()).toMatchObject([{ id: english.id, active: false }]);
+    expect(rules.get(rule.id).active).toBe(false);
+    expect(database.prepare('SELECT status FROM blocks WHERE id = ?').get(block.id).status).toBe('cancelled');
+
+    activities.restore(english.id);
+    expect(activities.listActive()).toMatchObject([{ id: english.id, active: true }]);
+    expect(rules.get(rule.id).active).toBe(true);
+
+    activities.archive(english.id, '2026-09-08');
+    expect(activities.purge(english.id)).toEqual({ id: english.id });
+    expect(activities.get(english.id)).toBeNull();
+    expect(database.prepare('SELECT COUNT(*) AS count FROM fronts').get().count).toBe(0);
+    expect(database.prepare('SELECT COUNT(*) AS count FROM recurrence_rules').get().count).toBe(0);
+    expect(database.prepare('SELECT COUNT(*) AS count FROM blocks').get().count).toBe(0);
+    expect(database.prepare('SELECT COUNT(*) AS count FROM track_items').get().count).toBe(0);
+
+    database.close();
+  });
 });
 
 describe('Block execution', () => {
