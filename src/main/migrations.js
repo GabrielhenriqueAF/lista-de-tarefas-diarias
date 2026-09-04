@@ -123,16 +123,26 @@ export function hasLegacySchema(database) {
 
 export function runMigrations(database) {
   database.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)');
-  if (schemaVersion(database) >= 1) return;
+  if (schemaVersion(database) < 1) {
+    database.transaction(() => {
+      database.exec(`
+        DROP TABLE IF EXISTS progress_entries;
+        DROP TABLE IF EXISTS sessions;
+        DROP TABLE IF EXISTS weekly_schedules;
+        DROP TABLE IF EXISTS tasks;
+      `);
+      database.exec(ROUTINE_SCHEMA_SQL);
+      database.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)').run(new Date().toISOString());
+    })();
+  }
 
-  database.transaction(() => {
-    database.exec(`
-      DROP TABLE IF EXISTS progress_entries;
-      DROP TABLE IF EXISTS sessions;
-      DROP TABLE IF EXISTS weekly_schedules;
-      DROP TABLE IF EXISTS tasks;
-    `);
-    database.exec(ROUTINE_SCHEMA_SQL);
-    database.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)').run(new Date().toISOString());
-  })();
+  if (schemaVersion(database) < 2) {
+    database.transaction(() => {
+      database.exec(`
+        ALTER TABLE recurrence_rules ADD COLUMN starts_on TEXT;
+        ALTER TABLE recurrence_rules ADD COLUMN ends_on TEXT;
+      `);
+      database.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)').run(new Date().toISOString());
+    })();
+  }
 }

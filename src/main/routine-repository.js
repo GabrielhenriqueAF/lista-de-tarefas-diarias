@@ -10,6 +10,8 @@ function mapRule(row) {
     startTime: row.start_time,
     endTime: row.end_time,
     checklistTemplate: JSON.parse(row.checklist_template),
+    startsOn: row.starts_on,
+    endsOn: row.ends_on,
     active: Boolean(row.active),
     googleEventId: row.google_event_id,
     updatedAt: row.updated_at
@@ -45,6 +47,15 @@ function assertRule(input) {
     throw new Error('Escolha pelo menos um dia da semana válido.');
   }
   assertSchedule({ weekday: input.weekdays[0], startTime: input.startTime, endTime: input.endTime });
+  if ((input.startsOn && !/^\d{4}-\d{2}-\d{2}$/.test(input.startsOn)) || (input.endsOn && !/^\d{4}-\d{2}-\d{2}$/.test(input.endsOn))) {
+    throw new Error('O período precisa usar datas válidas.');
+  }
+  if ((input.startsOn && !input.endsOn) || (!input.startsOn && input.endsOn)) {
+    throw new Error('Informe o início e o fim do período.');
+  }
+  if (input.startsOn && input.endsOn && input.endsOn < input.startsOn) {
+    throw new Error('O fim do período precisa ser posterior ao início.');
+  }
 }
 
 export function createRoutineRepository(database, { syncQueue = null } = {}) {
@@ -52,13 +63,14 @@ export function createRoutineRepository(database, { syncQueue = null } = {}) {
   const findBlock = database.prepare('SELECT * FROM blocks WHERE id = ?');
   const findBlockByRuleAndDate = database.prepare('SELECT * FROM blocks WHERE recurrence_rule_id = ? AND date = ?');
   const insertRule = database.prepare(`
-    INSERT INTO recurrence_rules (activity_id, front_id, title, weekdays, start_time, end_time, checklist_template, updated_at)
-    VALUES (@activityId, @frontId, @title, @weekdays, @startTime, @endTime, @checklistTemplate, @updatedAt)
+    INSERT INTO recurrence_rules (activity_id, front_id, title, weekdays, start_time, end_time, checklist_template, starts_on, ends_on, updated_at)
+    VALUES (@activityId, @frontId, @title, @weekdays, @startTime, @endTime, @checklistTemplate, @startsOn, @endsOn, @updatedAt)
   `);
   const updateRule = database.prepare(`
     UPDATE recurrence_rules
     SET activity_id = @activityId, front_id = @frontId, title = @title, weekdays = @weekdays,
         start_time = @startTime, end_time = @endTime, checklist_template = @checklistTemplate,
+        starts_on = @startsOn, ends_on = @endsOn,
         active = @active, updated_at = @updatedAt
     WHERE id = @id
   `);
@@ -125,26 +137,29 @@ export function createRoutineRepository(database, { syncQueue = null } = {}) {
     for (const row of activeRules.all()) {
       const rule = mapRule(row);
       for (const weekday of rule.weekdays) {
-        blocks.push(ensureBlock(rule, dateForWeekday(weekStart, weekday)));
+        const date = dateForWeekday(weekStart, weekday);
+        if ((!rule.startsOn || date >= rule.startsOn) && (!rule.endsOn || date <= rule.endsOn)) {
+          blocks.push(ensureBlock(rule, date));
+        }
       }
     }
     return blocks.sort((first, second) => first.plannedStartAt.localeCompare(second.plannedStartAt));
   });
 
   return {
-    create({ activityId, frontId = null, title, weekdays, startTime, endTime, checklistTemplate = [] }) {
-      assertRule({ title, weekdays, startTime, endTime });
+    create({ activityId, frontId = null, title, weekdays, startTime, endTime, checklistTemplate = [], startsOn = null, endsOn = null }) {
+      assertRule({ title, weekdays, startTime, endTime, startsOn, endsOn });
       const updatedAt = new Date().toISOString();
-      const result = insertRule.run({ activityId, frontId, title: title.trim(), weekdays: JSON.stringify(weekdays), startTime, endTime, checklistTemplate: JSON.stringify(checklistTemplate), updatedAt });
+      const result = insertRule.run({ activityId, frontId, title: title.trim(), weekdays: JSON.stringify(weekdays), startTime, endTime, checklistTemplate: JSON.stringify(checklistTemplate), startsOn, endsOn, updatedAt });
       const rule = mapRule(findRule.get(result.lastInsertRowid));
       enqueueRule(rule.id);
       return rule;
     },
 
-    update({ id, activityId, frontId = null, title, weekdays, startTime, endTime, checklistTemplate = [], active = true }) {
-      assertRule({ title, weekdays, startTime, endTime });
+    update({ id, activityId, frontId = null, title, weekdays, startTime, endTime, checklistTemplate = [], startsOn = null, endsOn = null, active = true }) {
+      assertRule({ title, weekdays, startTime, endTime, startsOn, endsOn });
       const updatedAt = new Date().toISOString();
-      updateRule.run({ id, activityId, frontId, title: title.trim(), weekdays: JSON.stringify(weekdays), startTime, endTime, checklistTemplate: JSON.stringify(checklistTemplate), active: active ? 1 : 0, updatedAt });
+      updateRule.run({ id, activityId, frontId, title: title.trim(), weekdays: JSON.stringify(weekdays), startTime, endTime, checklistTemplate: JSON.stringify(checklistTemplate), startsOn, endsOn, active: active ? 1 : 0, updatedAt });
       const rule = mapRule(findRule.get(id));
       enqueueRule(rule.id);
       return rule;

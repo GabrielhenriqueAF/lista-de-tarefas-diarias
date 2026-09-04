@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import Database from 'better-sqlite3';
-import { createDatabase } from '../../src/main/database.js';
+import { createDatabase, schemaVersion } from '../../src/main/database.js';
 import { createDailyBackup } from '../../src/main/backup-service.js';
 
 describe('routine database migration', () => {
@@ -14,6 +14,16 @@ describe('routine database migration', () => {
       .get();
 
     expect(table).toEqual({ name: 'activities' });
+
+    database.close();
+  });
+
+  it('adds nullable starts_on and ends_on through migration 2', () => {
+    const database = createDatabase(':memory:');
+
+    expect(schemaVersion(database)).toBe(2);
+    expect(database.prepare('PRAGMA table_info(recurrence_rules)').all().map((column) => column.name))
+      .toEqual(expect.arrayContaining(['starts_on', 'ends_on']));
 
     database.close();
   });
@@ -123,6 +133,30 @@ describe('recurrence rules and Blocks', () => {
     expect(queue.pending()).toMatchObject([{ operation: 'upsert-rule', payload: { id: rule.id } }]);
     rules.setGoogleEventId(rule.id, 'google-rule-8');
     expect(rules.get(rule.id)).toMatchObject({ googleEventId: 'google-rule-8', active: true });
+
+    database.close();
+  });
+
+  it('materializes a rule only inside its inclusive period', async () => {
+    const { createActivityRepository } = await import('../../src/main/activity-repository.js');
+    const { createRoutineRepository } = await import('../../src/main/routine-repository.js');
+    const database = createDatabase(':memory:');
+    const activities = createActivityRepository(database);
+    const rules = createRoutineRepository(database);
+    const english = activities.create({ name: 'Inglês', category: 'Estudo', color: '#2563eb' });
+
+    rules.create({
+      activityId: english.id,
+      title: 'Inglês',
+      weekdays: [2, 4],
+      startTime: '05:00',
+      endTime: '08:00',
+      startsOn: '2026-09-08',
+      endsOn: '2026-09-10'
+    });
+
+    expect(rules.listWeek('2026-09-07').map((block) => block.date)).toEqual(['2026-09-08', '2026-09-10']);
+    expect(rules.listWeek('2026-09-14')).toEqual([]);
 
     database.close();
   });
