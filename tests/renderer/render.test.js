@@ -47,6 +47,33 @@ describe('routine renderer', () => {
     expect(document.body.textContent).toContain('Inglês — Writing');
   });
 
+  it('switches the same weekly Blocks between table, Kanban and calendar', () => {
+    const modes = [];
+    const block = {
+      id: 7,
+      date: '2026-09-08',
+      title: 'Inglês — Writing',
+      activityName: 'Inglês',
+      frontName: 'Writing',
+      color: '#6E8FB5',
+      status: 'planned',
+      plannedStartAt: '2026-09-08T05:00:00',
+      plannedEndAt: '2026-09-08T08:00:00'
+    };
+
+    renderWeekView(document.querySelector('#app'), {
+      weekStart: '2026-09-07',
+      blocks: [block],
+      mode: 'table',
+      onModeChange: (mode) => modes.push(mode)
+    });
+
+    expect(document.querySelector('[data-week-table]')).not.toBeNull();
+    expect(document.body.textContent).toContain('Inglês');
+    document.querySelector('[data-week-mode="kanban"]').click();
+    expect(modes).toEqual(['kanban']);
+  });
+
   it('renders a block checklist and saves a completed subtask', () => {
     const completed = [];
     renderTodayView(document.querySelector('#app'), {

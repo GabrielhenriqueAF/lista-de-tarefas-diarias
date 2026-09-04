@@ -221,7 +221,15 @@ async function renderWeek() {
   const root = document.querySelector('#app');
   const { activities, fronts } = await loadRoutineData();
   const blocks = await applicationApi().rules.listWeek(weekStart());
-  renderWeekView(root, { weekStart: weekStart(), blocks });
+  renderWeekView(root, {
+    weekStart: weekStart(),
+    blocks,
+    mode: state.weekMode,
+    onModeChange: async (mode) => {
+      state.weekMode = mode;
+      await renderCurrentView();
+    }
+  });
   root.prepend(planningPanel({ activities, fronts, refresh: renderCurrentView }));
 }
 

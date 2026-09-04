@@ -23,6 +23,7 @@ function mapBlock(row) {
     activityId: row.activity_id,
     frontId: row.front_id,
     color: row.activity_color ?? '#2563eb',
+    activityName: row.activity_name ?? null,
     frontName: row.front_name ?? null,
     date: row.date,
     title: row.title,
@@ -78,7 +79,7 @@ export function createRoutineRepository(database, { syncQueue = null } = {}) {
     VALUES (@blockId, @position, @title)
   `);
   const weekBlocks = database.prepare(`
-    SELECT blocks.*, activities.color AS activity_color, fronts.name AS front_name
+    SELECT blocks.*, activities.color AS activity_color, activities.name AS activity_name, fronts.name AS front_name
     FROM blocks
     JOIN activities ON activities.id = blocks.activity_id
     LEFT JOIN fronts ON fronts.id = blocks.front_id

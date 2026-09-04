@@ -136,9 +136,35 @@ textarea { min-height: 64px; line-height: 1.55; resize: vertical; }
 .planning-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .form-card { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2); }
 
-.week-grid { display: grid; grid-template-columns: repeat(7, minmax(145px, 1fr)); gap: 8px; overflow-x: auto; }
-.day-column { min-height: 210px; padding: 12px; border-left: 1px solid var(--line); background: var(--surface-1); }
-.day-column h3 { color: var(--text-2); font-size: 12px; }
+.view-switcher { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--r-control); background: var(--surface-2); }
+.view-switcher button { border-color: transparent; color: var(--text-2); padding: 5px 9px; }
+.view-switcher button[aria-pressed='true'] { color: var(--text-1); background: var(--surface-3); border-color: var(--line); }
+.routine-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; background: var(--surface-1); }
+.routine-table th, .routine-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.routine-table th { color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .045em; }
+.routine-table tr:last-child td { border-bottom: 0; }
+.routine-table tbody tr:hover { background: var(--surface-2); }
+.table-title { position: relative; padding-left: 16px !important; font-weight: 600; }
+.table-title::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--block-color); }
+.status-cell { font-size: 12px; font-weight: 600; }
+.kanban-board { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 12px; overflow-x: auto; }
+.kanban-column { min-height: 260px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2); }
+.kanban-column h3 { margin: 0 0 12px; color: var(--text-2); font-size: 12px; }
+.kanban-card { display: grid; gap: 5px; margin: 8px 0; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--block-color); border-radius: var(--r-control); background: var(--surface-1); }
+.kanban-empty { color: var(--text-3); font-size: 12px; }
+.week-calendar { min-width: 740px; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); }
+.calendar-headings, .calendar-body { display: grid; grid-template-columns: 52px repeat(7, minmax(100px, 1fr)); }
+.calendar-headings { min-width: 740px; border-bottom: 1px solid var(--line); }
+.calendar-headings strong { padding: 9px 6px; border-left: 1px solid var(--line); color: var(--text-2); font-size: 11px; text-align: center; }
+.calendar-body { min-width: 740px; position: relative; min-height: var(--calendar-height); }
+.calendar-hours { position: relative; min-height: var(--calendar-height); color: var(--text-3); font-size: 10px; }
+.calendar-hours span { position: absolute; right: 7px; transform: translateY(-50%); }
+.calendar-day { position: relative; min-height: var(--calendar-height); border-left: 1px solid var(--line); background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 46px, var(--line) 47px); }
+.calendar-block { position: absolute; z-index: 1; top: var(--block-top); left: 4px; right: 4px; min-height: var(--block-height); overflow: hidden; padding: 5px 7px; border-left: 3px solid var(--block-color); border-radius: 4px; background: var(--surface-3); font-size: 11px; }
+.calendar-block strong { display: block; margin-top: 2px; font-size: 12px; }
+.calendar-block .muted, .calendar-block .status { display: none; }
+.calendar-time { color: var(--text-2); font-size: 10px; }
+.week-calendar { overflow: auto; }
 .block-card, .task-card { padding: 16px; border-left: 3px solid var(--block-color, var(--accent)); }
 .block-card { display: grid; gap: 4px; margin: 8px 0; background: var(--surface-2); }
 .status { width: fit-content; padding: 3px 8px; border-radius: 20px; background: var(--surface-3); color: var(--text-2); font-size: 11px; font-weight: 600; text-transform: capitalize; }

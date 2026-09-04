@@ -102,6 +102,7 @@ describe('recurrence rules and Blocks', () => {
     expect(rules.ensureBlocksForWeek('2026-09-07')).toHaveLength(1);
     expect(rules.listWeek('2026-09-07')).toMatchObject([{
       color: '#2563eb',
+      activityName: 'Inglês',
       frontName: 'Writing'
     }]);
 
@@ -156,6 +157,7 @@ describe('Block execution', () => {
     expect(fronts.get(writing.id).nextStep).toBe('Começar no exercício 13');
     expect(blocks.listToday('2026-09-08')).toMatchObject([{
       color: '#2563eb',
+      activityName: 'Inglês',
       frontName: 'Writing'
     }]);
 
