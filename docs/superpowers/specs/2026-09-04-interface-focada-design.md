@@ -67,6 +67,16 @@ O tempo relativo é atualizado visualmente a cada 30 segundos somente enquanto a
 
 O modal é a ação de criação. Não haverá mais formulários persistentes lado a lado na Semana.
 
+### Modos Tabela, Kanban e Calendário
+
+A Semana possui um seletor compacto de visualização com três opções, inspirado nas referências enviadas: **Tabela**, **Kanban** e **Calendário**. É o mesmo conjunto de Blocos da semana, portanto trocar de modo não cria cópias nem altera o banco.
+
+- **Tabela** é a visão mais enxuta para revisar a rotina. Cada linha mostra título do Bloco, etiqueta colorida da Atividade, Frente opcional, data/início planejados e status. Ela usa separadores finos, cabeçalho fixo somente dentro de sua área de rolagem e nenhuma coluna sem dado no domínio atual.
+- **Kanban** agrupa os Blocos pelos status locais: **A fazer** (`planned`), **Em andamento** (`in_progress`), **Concluído** (`completed`) e **Cancelado** (`cancelled`). Os cartões exibem filete colorido, título, hora e etiqueta da Atividade. A mudança real de status continua acontecendo pelas ações de Hoje; o quadro não finge que arrastar um cartão conclui uma sessão.
+- **Calendário** é a agenda semanal por horário já descrita acima. Ele privilegia compromissos como Inglês às 05:00 e Trabalho GG às 08:00, em vez de uma grade mensal que esconderia duração e sobreposição.
+
+O modo inicial da Semana é **Calendário**. Os outros dois modos podem ser alternados sem recarregar dados e sem aparecer como novas abas principais, mantendo o cabeçalho limpo.
+
 ## Modal Novo bloco
 
 O modal tem foco preso enquanto estiver aberto, fecha por Escape, botão Fechar ou clique no fundo, e devolve o foco ao botão que o abriu. Seus três passos são claros e não permitem avançar com campos inválidos.
@@ -117,7 +127,8 @@ Testes automatizados deverão confirmar:
 
 - a aba inicial é Hoje e a navegação muda a área renderizada;
 - Hoje mostra Bloco atual, próximo ou estado vazio com CTA, sem perder checklist e ações de início/fim;
-- Semana posiciona Blocos por horário, incluindo uma regra com vários dias;
+- Semana alterna entre Tabela, Kanban e Calendário usando os mesmos Blocos; Calendário posiciona Blocos por horário, incluindo uma regra com vários dias;
+- Tabela mostra atividade, data/hora e status; Kanban agrupa corretamente `planned`, `in_progress`, `completed` e `cancelled`;
 - o wizard valida cada passo e cria Atividade/Frente somente quando o usuário escolhe criar;
 - o wizard cria uma regra sem Frente quando ela é opcional;
 - o toast aparece e desaparece sem permanecer como status fixo;
