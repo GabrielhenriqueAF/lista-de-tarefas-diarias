@@ -74,6 +74,25 @@ describe('routine renderer', () => {
     expect(modes).toEqual(['kanban']);
   });
 
+  it('navigates the selected week without changing its current view mode', () => {
+    const navigation = [];
+    renderWeekView(document.querySelector('#app'), {
+      weekStart: '2026-09-07',
+      blocks: [],
+      mode: 'calendar',
+      onPreviousWeek: () => navigation.push('previous'),
+      onNextWeek: () => navigation.push('next'),
+      onToday: () => navigation.push('today')
+    });
+
+    document.querySelector('[data-week-nav="previous"]').click();
+    document.querySelector('[data-week-nav="today"]').click();
+    document.querySelector('[data-week-nav="next"]').click();
+
+    expect(navigation).toEqual(['previous', 'today', 'next']);
+    expect(document.querySelector('[data-week-calendar]')).not.toBeNull();
+  });
+
   it('renders a block checklist and saves a completed subtask', () => {
     const completed = [];
     renderTodayView(document.querySelector('#app'), {
@@ -170,5 +189,17 @@ describe('routine renderer', () => {
     });
 
     expect(document.querySelector('[data-setting="google"] [data-action="sync-google"]')).not.toBeNull();
+  });
+
+  it('renders archive and restore actions next to activity lifecycle states', () => {
+    renderSettingsView(document.querySelector('#app'), {
+      theme: 'dark',
+      activities: [{ id: 1, name: 'Inglês', category: 'Estudo' }],
+      archivedActivities: [{ id: 2, name: 'Trabalho antigo', category: 'Trabalho' }]
+    });
+
+    expect(document.querySelector('[data-action="archive-activity"][data-activity-id="1"]')).not.toBeNull();
+    expect(document.querySelector('[data-action="restore-activity"][data-activity-id="2"]')).not.toBeNull();
+    expect(document.querySelector('[data-action="purge-activity"][data-activity-id="2"]')).not.toBeNull();
   });
 });

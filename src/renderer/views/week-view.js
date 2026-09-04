@@ -42,6 +42,24 @@ function formatDate(date) {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(date);
 }
 
+function formatWeekRange(weekStart) {
+  const dates = weekDates(weekStart);
+  const formatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
+  return `${formatter.format(dates[0])} — ${formatter.format(dates.at(-1))}`;
+}
+
+function weekNavigator(weekStart, { onPreviousWeek, onNextWeek, onToday }) {
+  const navigation = element('div', { className: 'week-navigation', attributes: { 'aria-label': 'Navegação da semana' } });
+  const previous = element('button', { type: 'button', text: '‹', className: 'icon-button', dataset: { weekNav: 'previous' }, attributes: { 'aria-label': 'Semana anterior' } });
+  const today = element('button', { type: 'button', text: 'Hoje', className: 'btn-ghost', dataset: { weekNav: 'today' } });
+  const next = element('button', { type: 'button', text: '›', className: 'icon-button', dataset: { weekNav: 'next' }, attributes: { 'aria-label': 'Próxima semana' } });
+  previous.addEventListener('click', onPreviousWeek);
+  today.addEventListener('click', onToday);
+  next.addEventListener('click', onNextWeek);
+  navigation.append(previous, element('span', { className: 'week-range num', text: formatWeekRange(weekStart) }), today, next);
+  return navigation;
+}
+
 function renderTable(blocks) {
   const table = element('table', { className: 'routine-table', attributes: { 'data-week-table': '' } });
   const head = element('thead');
@@ -133,12 +151,12 @@ function renderCalendar(weekStart, blocks) {
   return calendar;
 }
 
-export function renderWeekView(root, { weekStart, blocks = [], mode = 'calendar', onModeChange, onOpenCreate = () => {} }) {
+export function renderWeekView(root, { weekStart, blocks = [], mode = 'calendar', onModeChange, onOpenCreate = () => {}, onPreviousWeek = () => {}, onNextWeek = () => {}, onToday = () => {} }) {
   const heading = element('section', { className: 'view-heading' });
   const title = element('div');
   title.append(element('p', { className: 'eyebrow', text: 'ROTINA' }), element('h1', { text: 'Minha semana' }));
   const actions = element('div', { className: 'view-actions' });
-  actions.append(modeSelector(mode, onModeChange));
+  actions.append(weekNavigator(weekStart, { onPreviousWeek, onNextWeek, onToday }), modeSelector(mode, onModeChange));
   const create = element('button', { type: 'button', text: '+ Novo bloco', className: 'btn-primary', dataset: { action: 'open-create' } });
   create.addEventListener('click', onOpenCreate);
   actions.append(create);

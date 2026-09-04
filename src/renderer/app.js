@@ -1,5 +1,6 @@
 import { dateOnly, element } from './views/dom.js';
 import { createBlockWizard } from './block-wizard.js';
+import { createDangerConfirmDialog } from './danger-confirm-dialog.js';
 import { renderHistoryView } from './views/history-view.js';
 import { renderProgressView } from './views/progress-view.js';
 import { renderSettingsView } from './views/settings-view.js';
@@ -11,6 +12,7 @@ export function initialUiState() {
     tab: 'today',
     theme: 'system',
     weekMode: 'calendar',
+    selectedWeekStart: weekStart(),
     progressFilter: monthFilter(),
     historyFrontId: null
   };
@@ -20,6 +22,7 @@ const state = initialUiState();
 let toastTimeout;
 let todayRefreshInterval;
 let blockWizard;
+let dangerConfirmDialog;
 
 function monthFilter(now = new Date()) {
   const year = now.getFullYear();
@@ -58,6 +61,12 @@ export function showToast(message, type = 'success') {
   toastTimeout = setTimeout(() => {
     toast.hidden = true;
   }, 3000);
+}
+
+function shiftWeek(value, amount) {
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + (amount * 7));
+  return dateOnly(date);
 }
 
 function setStatus(message, type = 'success') {
@@ -133,16 +142,28 @@ async function openBlockWizard(trigger = document.activeElement) {
 
 async function renderWeek() {
   const root = document.querySelector('#app');
-  const blocks = await applicationApi().rules.listWeek(weekStart());
+  const blocks = await applicationApi().rules.listWeek(state.selectedWeekStart);
   renderWeekView(root, {
-    weekStart: weekStart(),
+    weekStart: state.selectedWeekStart,
     blocks,
     mode: state.weekMode,
     onModeChange: async (mode) => {
       state.weekMode = mode;
       await renderCurrentView();
     },
-    onOpenCreate: () => openBlockWizard(document.activeElement)
+    onOpenCreate: () => openBlockWizard(document.activeElement),
+    onPreviousWeek: async () => {
+      state.selectedWeekStart = shiftWeek(state.selectedWeekStart, -1);
+      await renderCurrentView();
+    },
+    onNextWeek: async () => {
+      state.selectedWeekStart = shiftWeek(state.selectedWeekStart, 1);
+      await renderCurrentView();
+    },
+    onToday: async () => {
+      state.selectedWeekStart = weekStart();
+      await renderCurrentView();
+    }
   });
 }
 
@@ -224,7 +245,11 @@ async function renderHistory() {
 }
 
 async function renderSettings() {
-  const googleState = await applicationApi().google.status();
+  const [googleState, activities, archivedActivities] = await Promise.all([
+    applicationApi().google.status(),
+    applicationApi().activities.list(),
+    applicationApi().activities.listArchived()
+  ]);
   renderSyncIndicator(googleState);
   renderSettingsView(document.querySelector('#app'), {
     theme: state.theme,
@@ -232,6 +257,8 @@ async function renderSettings() {
     lastSyncedAt: googleState.lastSyncedAt,
     configured: googleState.configured,
     connected: googleState.connected,
+    activities,
+    archivedActivities,
     onConnect: async () => {
       await applicationApi().google.connect();
       renderSyncIndicator(await applicationApi().google.status());
@@ -243,6 +270,27 @@ async function renderSettings() {
       renderSyncIndicator(await applicationApi().google.status());
       setStatus(`Sincronizado: ${result.pushed} enviado(s), ${result.imported} importado(s).`);
       await renderCurrentView();
+    },
+    onArchive: async (activity) => {
+      try {
+        await applicationApi().activities.archive(activity.id);
+        setStatus(`${activity.name} foi arquivada.`);
+      } catch (error) {
+        setStatus(error.message, 'error');
+      }
+      await renderCurrentView();
+    },
+    onRestore: async (activity) => {
+      try {
+        await applicationApi().activities.restore(activity.id);
+        setStatus(`${activity.name} foi restaurada.`);
+      } catch (error) {
+        setStatus(error.message, 'error');
+      }
+      await renderCurrentView();
+    },
+    onPurge: (activity) => {
+      dangerConfirmDialog?.open({ activity, trigger: document.activeElement });
     }
   });
 }
@@ -289,6 +337,14 @@ async function initializeApplication() {
   state.theme = await applicationApi().settings.getTheme();
   applyTheme(state.theme);
   blockWizard = createBlockWizard({ root: document.querySelector('#modal-root'), onSubmit: saveBlockDraft });
+  dangerConfirmDialog = createDangerConfirmDialog({
+    root: document.querySelector('#modal-root'),
+    onConfirm: async (activity) => {
+      await applicationApi().activities.purge(activity.id);
+      setStatus(`${activity.name} foi excluída definitivamente.`);
+      await renderCurrentView();
+    }
+  });
   try {
     renderSyncIndicator(await applicationApi().google.status());
   } catch {

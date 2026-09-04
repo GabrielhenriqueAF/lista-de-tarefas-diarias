@@ -12,6 +12,26 @@ function settingRow(name, title, description) {
   return row;
 }
 
+function activityLifecycleRow(activity, { archived = false, onArchive, onRestore, onPurge }) {
+  const row = element('div', { className: 'activity-lifecycle-row' });
+  const copy = element('div');
+  copy.append(element('strong', { text: activity.name }), element('span', { className: 'muted', text: activity.category || 'Sem categoria' }));
+  const actions = element('div', { className: 'setting-actions' });
+  if (archived) {
+    const restore = element('button', { type: 'button', text: 'Restaurar', className: 'btn-ghost', dataset: { action: 'restore-activity', activityId: activity.id } });
+    const purge = element('button', { type: 'button', text: 'Excluir definitivamente', className: 'btn-danger', dataset: { action: 'purge-activity', activityId: activity.id } });
+    restore.addEventListener('click', async () => onRestore(activity));
+    purge.addEventListener('click', () => onPurge(activity));
+    actions.append(restore, purge);
+  } else {
+    const archive = element('button', { type: 'button', text: 'Arquivar', className: 'btn-ghost', dataset: { action: 'archive-activity', activityId: activity.id } });
+    archive.addEventListener('click', async () => onArchive(activity));
+    actions.append(archive);
+  }
+  row.append(copy, actions);
+  return row;
+}
+
 export function renderSettingsView(root, {
   theme,
   databaseLocation,
@@ -20,7 +40,12 @@ export function renderSettingsView(root, {
   configured = false,
   connected = false,
   onConnect = async () => {},
-  onSync = async () => {}
+  onSync = async () => {},
+  activities = [],
+  archivedActivities = [],
+  onArchive = async () => {},
+  onRestore = async () => {},
+  onPurge = () => {}
 }) {
   const section = element('section', { className: 'settings-view' });
   const heading = element('header', { className: 'view-heading' });
@@ -50,6 +75,16 @@ export function renderSettingsView(root, {
     google.append(actions);
   }
 
-  section.append(persistence, themeRow, google);
+  const lifecycle = settingRow('activities', 'Atividades', 'Arquive o que saiu da sua rotina ou remova de vez após confirmar.');
+  const lifecycleList = element('div', { className: 'activity-lifecycle-list' });
+  if (activities.length) activities.forEach((activity) => lifecycleList.append(activityLifecycleRow(activity, { onArchive, onRestore, onPurge })));
+  else lifecycleList.append(element('p', { className: 'muted', text: 'Nenhuma atividade ativa.' }));
+  if (archivedActivities.length) {
+    lifecycleList.append(element('p', { className: 'archived-label', text: 'Arquivadas' }));
+    archivedActivities.forEach((activity) => lifecycleList.append(activityLifecycleRow(activity, { archived: true, onArchive, onRestore, onPurge })));
+  }
+  lifecycle.append(lifecycleList);
+
+  section.append(persistence, themeRow, google, lifecycle);
   root.replaceChildren(section);
 }
