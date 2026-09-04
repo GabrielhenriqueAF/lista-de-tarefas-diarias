@@ -88,7 +88,7 @@ describe('Google bidirectional sync', () => {
           id: 'g-rule-1',
           status: 'confirmed',
           summary: 'Inglês — Writing revisado',
-          updated: '2026-09-04T12:00:00Z',
+          updated: '2099-09-04T12:00:00Z',
           start: { dateTime: '2026-09-08T06:00:00-03:00' },
           end: { dateTime: '2026-09-08T09:00:00-03:00' },
           extendedProperties: { private: { recurrenceRuleId: String(rule.id) } }
