@@ -11,6 +11,12 @@ function dateForNextWeekday(weekday, now) {
   return date.toISOString().slice(0, 10);
 }
 
+function dateForFirstOccurrence(rule, now) {
+  const nextDate = dateForNextWeekday(rule.weekdays[0], now);
+  if (!rule.startsOn || nextDate >= rule.startsOn) return nextDate;
+  return dateForNextWeekday(rule.weekdays[0], new Date(`${rule.startsOn}T12:00:00Z`));
+}
+
 function zonedDateTime(date, time) {
   return `${date}T${time}:00-03:00`;
 }
@@ -20,12 +26,14 @@ function responseData(response) {
 }
 
 export function eventForRule(rule, now = new Date()) {
-  const firstDate = dateForNextWeekday(rule.weekdays[0], now);
+  const firstDate = dateForFirstOccurrence(rule, now);
+  const recurrence = [`RRULE:FREQ=WEEKLY;BYDAY=${rule.weekdays.map((day) => DAY_CODES[day]).join(',')}`];
+  if (rule.endsOn) recurrence[0] += `;UNTIL=${rule.endsOn.replaceAll('-', '')}T235959Z`;
   return {
     summary: rule.title,
     start: { dateTime: zonedDateTime(firstDate, rule.startTime), timeZone: TIME_ZONE },
     end: { dateTime: zonedDateTime(firstDate, rule.endTime), timeZone: TIME_ZONE },
-    recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${rule.weekdays.map((day) => DAY_CODES[day]).join(',')}`],
+    recurrence,
     reminders: REMINDERS,
     extendedProperties: { private: { recurrenceRuleId: String(rule.id), localUpdatedAt: rule.updatedAt } }
   };

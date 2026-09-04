@@ -73,6 +73,37 @@ describe('Google bidirectional sync', () => {
     expect(saved).toEqual([[9, 'g-9']]);
   });
 
+  it('deletes a queued Google event and treats a missing remote event as already deleted', async () => {
+    const calls = [];
+    const completed = [];
+    const queue = {
+      pending: () => [{ id: 3, operation: 'delete-rule', payload: { googleEventId: 'g-removed' } }],
+      markDone: (id) => completed.push(id),
+      markFailed: () => {},
+      getState: () => null,
+      setState: () => {}
+    };
+    const sync = createSyncService({
+      calendarService: { ensureRoutineCalendar: async () => 'rotina-gabriel' },
+      google: {
+        deleteEvent: async (_calendarId, eventId) => {
+          calls.push(eventId);
+          const error = new Error('Not found');
+          error.code = 404;
+          throw error;
+        },
+        listEvents: async () => ({ data: { items: [] } })
+      },
+      queue,
+      rules: {},
+      blocks: {}
+    });
+
+    await expect(sync.syncNow()).resolves.toMatchObject({ pushed: 1 });
+    expect(calls).toEqual(['g-removed']);
+    expect(completed).toEqual([3]);
+  });
+
   it('imports a newer remote rule title and schedule', async () => {
     const database = createDatabase(':memory:');
     const activities = createActivityRepository(database);

@@ -4,8 +4,20 @@ function responseData(response) {
   return response?.data ?? response;
 }
 
+function isNotFound(error) {
+  return error?.code === 404 || error?.response?.status === 404;
+}
+
 export function createSyncService({ calendarService, google, queue, rules, blocks }) {
   async function pushOperation(calendarId, operation) {
+    if (operation.operation === 'delete-rule') {
+      try {
+        await google.deleteEvent(calendarId, operation.payload.googleEventId);
+      } catch (error) {
+        if (!isNotFound(error)) throw error;
+      }
+      return;
+    }
     if (operation.operation !== 'upsert-rule') {
       throw new Error(`Operação de sincronização desconhecida: ${operation.operation}`);
     }

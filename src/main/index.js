@@ -35,6 +35,7 @@ app.whenReady().then(() => {
   createDailyBackup(databasePath, backupDirectory);
   const syncQueue = createSyncRepository(database);
   const settings = createSettingsRepository(database);
+  const activities = createActivityRepository(database);
   const rules = createRoutineRepository(database, { syncQueue });
   const blocks = createBlockRepository(database);
   const google = createGoogleController({
@@ -45,11 +46,12 @@ app.whenReady().then(() => {
     }),
     settings,
     queue: syncQueue,
+    activities,
     rules,
     blocks
   });
   const repositories = {
-    activities: createActivityRepository(database),
+    activities,
     fronts: createFrontRepository(database),
     rules,
     blocks,
