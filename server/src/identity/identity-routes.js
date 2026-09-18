@@ -1,5 +1,7 @@
 import { unauthenticated } from './identity-service.js';
 
+const authRateLimit = { max: 5, timeWindow: '1 minute' };
+
 function bearerToken(request) {
   const authorization = request.headers.authorization;
   const match = typeof authorization === 'string' && /^Bearer ([A-Za-z0-9_-]{43})$/i.exec(authorization);
@@ -13,19 +15,25 @@ export function registerIdentityRoutes(app, service) {
     request.identity = await service.authenticate(bearerToken(request));
   });
 
-  app.post('/auth/register', async (request, reply) => {
-    const result = await service.register(request.body);
-    return reply.code(201).send(result);
+  app.after((error) => {
+    if (error) throw error;
+
+    app.post('/auth/register', { config: { rateLimit: { ...authRateLimit } } }, async (request, reply) => {
+      const result = await service.register(request.body);
+      return reply.code(201).send(result);
+    });
+
+    app.post('/auth/login', { config: { rateLimit: { ...authRateLimit } } }, async (request) =>
+      service.login(request.body)
+    );
+
+    app.post('/auth/logout', { preHandler: app.authenticate }, async (request, reply) => {
+      await service.logout(bearerToken(request));
+      return reply.code(204).send();
+    });
+
+    app.get('/auth/me', { preHandler: app.authenticate }, async (request) => ({
+      user: await service.getUser(request.identity.userId)
+    }));
   });
-
-  app.post('/auth/login', async (request) => service.login(request.body));
-
-  app.post('/auth/logout', { preHandler: app.authenticate }, async (request, reply) => {
-    await service.logout(bearerToken(request));
-    return reply.code(204).send();
-  });
-
-  app.get('/auth/me', { preHandler: app.authenticate }, async (request) => ({
-    user: await service.getUser(request.identity.userId)
-  }));
 }

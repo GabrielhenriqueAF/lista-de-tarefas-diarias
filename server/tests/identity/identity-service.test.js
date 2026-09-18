@@ -94,6 +94,55 @@ describe('identity lifecycle', () => {
     expect((await pool.query('SELECT * FROM users')).rows).toHaveLength(0);
   });
 
+  it('validates every registration field before password hashing starts', async () => {
+    const authWorkLimiter = {
+      run: async () => { throw new Error('password work must not start'); }
+    };
+    const validatingService = createIdentityService({
+      repository: createIdentityRepository(pool),
+      authWorkLimiter
+    });
+
+    for (const invalid of [
+      { email: 'a@b.com', password: 'short', displayName: 'Ana', workspaceName: 'Casa' },
+      { email: `${'a'.repeat(250)}@b.com`, password: '123456789012', displayName: 'Ana', workspaceName: 'Casa' },
+      { email: 'ana@example.com', password: '123456789012', displayName: 'x'.repeat(121), workspaceName: 'Casa' },
+      { email: 'ana@example.com', password: '123456789012', displayName: 'Ana', workspaceName: 'x'.repeat(121) },
+      { email: 'ana@example.com', password: 'x'.repeat(129), displayName: 'Ana', workspaceName: 'Casa' }
+    ]) {
+      await expect(validatingService.register(invalid))
+        .rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    }
+
+    expect((await pool.query('SELECT * FROM users')).rows).toHaveLength(0);
+  });
+
+  it('preserves the submitted password exactly across registration and login', async () => {
+    const password = ' leading-space!';
+    const registered = await service.register({ ...registration, password });
+
+    await expect(service.login({ email: registration.email, password: password.trim() }))
+      .rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    await expect(service.login({ email: registration.email, password }))
+      .resolves.toMatchObject({ user: registered.user });
+  });
+
+  it('routes registration hashing and login verification through the injected limiter', async () => {
+    const busyLimiter = {
+      run: async () => {
+        throw Object.assign(new Error('busy'), { code: 'AUTH_BUSY' });
+      }
+    };
+    const limitedService = createIdentityService({ repository: createIdentityRepository(pool), authWorkLimiter: busyLimiter });
+
+    await expect(limitedService.register(registration)).rejects.toMatchObject({ code: 'AUTH_BUSY' });
+    expect((await pool.query('SELECT * FROM users')).rows).toHaveLength(0);
+
+    await service.register(registration);
+    await expect(limitedService.login(registration)).rejects.toMatchObject({ code: 'AUTH_BUSY' });
+    expect((await pool.query('SELECT * FROM sessions')).rows).toHaveLength(1);
+  });
+
   it('uses one transaction for registration and rolls back on membership failure', async () => {
     // pg-mem cannot roll back, so observe the actual SQL boundary on its client.
     const statements = [];

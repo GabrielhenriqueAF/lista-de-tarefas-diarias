@@ -41,7 +41,7 @@ describe('identity HTTP routes', () => {
     const duplicate = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...registration, email: ' GABRIEL@example.test ' } });
     expect(duplicate.statusCode).toBe(409);
     expect(duplicate.json().error.code).toBe('EMAIL_ALREADY_EXISTS');
-    const incorrect = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: registration.email, password: 'incorrect' } });
+    const incorrect = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: registration.email, password: 'incorrect-password' } });
     expect(incorrect.statusCode).toBe(401);
     expect(incorrect.json()).toEqual(unauthenticated);
   });
@@ -70,9 +70,78 @@ describe('identity HTTP routes', () => {
     for (const url of ['/auth/register', '/auth/login']) {
       const response = await app.inject({ method: 'POST', url, payload: {} });
       expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } });
+      expect(response.json()).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
       expect(response.json()).not.toHaveProperty('stack');
     }
+  });
+
+  it('rate limits registration and login independently per remote address', async () => {
+    const rateLimited = {
+      error: { code: 'RATE_LIMITED', message: 'Muitas tentativas. Tente novamente em instantes.' }
+    };
+
+    for (const url of ['/auth/register', '/auth/login']) {
+      for (let attempt = 1; attempt <= 6; attempt += 1) {
+        const response = await app.inject({
+          method: 'POST',
+          url,
+          remoteAddress: '127.0.0.44',
+          payload: { email: 'bad', password: 'short', displayName: 'Ana', workspaceName: 'Casa' }
+        });
+
+        if (attempt <= 5) {
+          expect(response.statusCode).toBe(400);
+          expect(response.json()).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+        } else {
+          expect(response.statusCode).toBe(429);
+          expect(response.json()).toEqual(rateLimited);
+          expect(JSON.stringify(response.json())).not.toMatch(/@|exist|token|stack/i);
+        }
+      }
+    }
+  });
+
+  it('uses the actual remote address when forwarded addresses change', async () => {
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/auth/register',
+        remoteAddress: '127.0.0.55',
+        headers: { 'x-forwarded-for': `198.51.100.${attempt + 7}` },
+        payload: { email: 'bad', password: 'short', displayName: 'Ana', workspaceName: 'Casa' }
+      });
+
+      expect(response.statusCode).toBe(attempt <= 5 ? 400 : 429);
+    }
+  });
+
+  it('rejects an 8193-byte JSON payload before identity work begins', async () => {
+    const payload = JSON.stringify({ value: 'x'.repeat(8181) });
+    expect(Buffer.byteLength(payload)).toBe(8193);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      headers: { 'content-type': 'application/json' },
+      payload
+    });
+
+    expect(response.statusCode).toBe(413);
+  });
+
+  it('returns the generic public response when authentication work is saturated', async () => {
+    app.get('/auth-busy-contract', () => {
+      const error = new Error('private saturation detail');
+      error.code = 'AUTH_BUSY';
+      throw error;
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/auth-busy-contract' });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      error: { code: 'AUTH_BUSY', message: 'Serviço de autenticação temporariamente ocupado.' }
+    });
   });
 
   it('makes the authenticated identity available to subsequent protected routes', async () => {

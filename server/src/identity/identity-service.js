@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import argon2 from 'argon2';
+import { createAuthWorkLimiter } from './auth-work-limiter.js';
 
 const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
 
@@ -11,20 +12,28 @@ export function unauthenticated() {
 
 function invalidInput() {
   return Object.assign(new Error('Preencha os campos obrigatórios corretamente.'), {
-    code: 'INVALID_INPUT', statusCode: 400
+    code: 'VALIDATION_ERROR', statusCode: 400
   });
 }
 
-function requiredText(value) {
-  if (typeof value !== 'string' || !value.trim()) throw invalidInput();
-  return value.trim();
+function requiredText(value, maxLength) {
+  if (typeof value !== 'string') throw invalidInput();
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maxLength) throw invalidInput();
+  return normalized;
+}
+
+function validatePassword(password) {
+  if (typeof password !== 'string' || password.length < 12 || password.length > 128) {
+    throw invalidInput();
+  }
+  return password;
 }
 
 function credentials(input) {
-  const email = requiredText(input?.email).toLowerCase();
+  const email = requiredText(input?.email, 254).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw invalidInput();
-  requiredText(input?.password);
-  return { email, password: input.password };
+  return { email, password: validatePassword(input?.password) };
 }
 
 function digest(token) {
@@ -36,7 +45,11 @@ function publicUser(user) {
   return { id: user.id, email: user.email, displayName: user.displayName };
 }
 
-export function createIdentityService({ repository, now = () => new Date() }) {
+export function createIdentityService({
+  repository,
+  now = () => new Date(),
+  authWorkLimiter = createAuthWorkLimiter()
+}) {
   function newSession(userId) {
     const token = randomBytes(32).toString('base64url');
     const expiresAt = new Date(now().getTime() + sessionDurationMs);
@@ -49,9 +62,10 @@ export function createIdentityService({ repository, now = () => new Date() }) {
   return {
     async register(input) {
       const { email, password } = credentials(input);
-      const displayName = requiredText(input.displayName);
-      const workspaceName = requiredText(input.workspaceName);
-      const user = { id: randomUUID(), email, displayName, passwordHash: await argon2.hash(password) };
+      const displayName = requiredText(input.displayName, 120);
+      const workspaceName = requiredText(input.workspaceName, 120);
+      const passwordHash = await authWorkLimiter.run(() => argon2.hash(password));
+      const user = { id: randomUUID(), email, displayName, passwordHash };
       const workspace = { id: randomUUID(), name: workspaceName, ownerId: user.id };
       const session = newSession(user.id);
       await repository.createAccount({ user, workspace, session: session.stored });
@@ -61,7 +75,9 @@ export function createIdentityService({ repository, now = () => new Date() }) {
     async login(input) {
       const { email, password } = credentials(input);
       const user = await repository.findUserByEmail(email);
-      if (!user || !await argon2.verify(user.passwordHash, password)) throw unauthenticated();
+      if (!user || !await authWorkLimiter.run(() => argon2.verify(user.passwordHash, password))) {
+        throw unauthenticated();
+      }
       const session = newSession(user.id);
       await repository.createSession(session.stored);
       return { user: publicUser(user), token: session.token, expiresAt: session.expiresAt };
