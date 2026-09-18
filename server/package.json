@@ -4,7 +4,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "db:migrate": "node src/database/migrate-cli.js",
-    "test": "vitest"
+    "test": "vitest --config ../vitest.config.js",
+    "test:postgres": "vitest --config vitest.postgres.config.js --run"
   },
   "dependencies": {
     "@fastify/rate-limit": "^11.2.0",
