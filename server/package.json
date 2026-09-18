@@ -3,6 +3,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "db:migrate": "node src/database/migrate-cli.js",
     "test": "vitest"
   },
   "dependencies": {

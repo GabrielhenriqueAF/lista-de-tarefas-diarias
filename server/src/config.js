@@ -10,6 +10,20 @@ function required(env, name) {
   return value;
 }
 
+function parsePort(value, nodeEnv) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    throw new Error('PORT deve ser um inteiro válido.');
+  }
+
+  const port = Number(value);
+  const minimum = nodeEnv === 'test' ? 0 : 1;
+  if (!Number.isSafeInteger(port) || port < minimum || port > 65535) {
+    throw new Error('PORT está fora da faixa permitida.');
+  }
+
+  return port;
+}
+
 export function loadConfig(env) {
   const nodeEnv = env.NODE_ENV ?? 'development';
   const isTest = nodeEnv === 'test';
@@ -22,7 +36,7 @@ export function loadConfig(env) {
 
   return {
     nodeEnv,
-    port: Number(env.PORT ?? 3030),
+    port: parsePort(env.PORT ?? '3030', nodeEnv),
     databaseUrl,
     sessionSecret
   };

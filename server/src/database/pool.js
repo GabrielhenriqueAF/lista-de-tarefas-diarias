@@ -1,7 +1,11 @@
-import { Pool } from 'pg';
+import { Pool as PostgresPool } from 'pg';
 
-export function createPool(connectionString) {
-  return new Pool({ connectionString });
+export function createPool(connectionString, { onIdleError = () => {}, Pool = PostgresPool } = {}) {
+  const pool = new Pool({ connectionString });
+  pool.on('error', (error) => {
+    onIdleError({ code: typeof error?.code === 'string' ? error.code : 'UNKNOWN' });
+  });
+  return pool;
 }
 
 export async function withTransaction(pool, callback) {

@@ -7,20 +7,24 @@ import { createWorkspaceRepository } from './workspaces/workspace-repository.js'
 import { createWorkspaceService } from './workspaces/workspace-service.js';
 import { registerWorkspaceRoutes } from './workspaces/workspace-routes.js';
 
-export function createApp({ config, repositories }) {
-  const app = Fastify({ logger: false });
+export function createApp({ config, repositories, readinessCheck } = {}) {
+  const app = Fastify({ logger: false, bodyLimit: 8 * 1024, trustProxy: false });
 
   app.decorate('config', config);
   app.decorate('repositories', repositories);
 
   let identityRepository = repositories.identity;
   let workspaceRepository = repositories.workspace;
+  let pool;
   if ((!identityRepository || !workspaceRepository) && config.databaseUrl) {
-    const pool = createPool(config.databaseUrl);
+    pool = createPool(config.databaseUrl, {
+      onIdleError: ({ code }) => app.log.error({ code }, 'Daymint PostgreSQL pool error')
+    });
     identityRepository ??= createIdentityRepository(pool);
     workspaceRepository ??= createWorkspaceRepository(pool);
     app.addHook('onClose', async () => pool.end());
   }
+  readinessCheck ??= () => pool.query('SELECT 1');
   const identityService = createIdentityService({ repository: identityRepository });
   app.decorate('identityService', identityService);
   registerIdentityRoutes(app, identityService);
@@ -41,6 +45,17 @@ export function createApp({ config, repositories }) {
   });
 
   app.get('/health', () => ({ status: 'ok' }));
+
+  app.get('/ready', async (_request, reply) => {
+    try {
+      await readinessCheck();
+      return { status: 'ready' };
+    } catch {
+      return reply.code(503).send({
+        error: { code: 'DATABASE_UNAVAILABLE', message: 'Banco de dados indisponível.' }
+      });
+    }
+  });
 
   return app;
 }

@@ -27,4 +27,24 @@ describe('createApp', () => {
     });
     await app.close();
   });
+
+  it('keeps health as liveness and exposes a safe database readiness result', async () => {
+    const options = { config: { nodeEnv: 'test' }, repositories: {} };
+    const readyApp = createApp({ ...options, readinessCheck: async () => {} });
+    const unavailableApp = createApp({
+      ...options,
+      readinessCheck: async () => { throw new Error('password=secret'); },
+    });
+
+    expect((await readyApp.inject({ method: 'GET', url: '/health' })).json()).toEqual({ status: 'ok' });
+    expect((await readyApp.inject({ method: 'GET', url: '/ready' })).json()).toEqual({ status: 'ready' });
+
+    const response = await unavailableApp.inject({ method: 'GET', url: '/ready' });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      error: { code: 'DATABASE_UNAVAILABLE', message: 'Banco de dados indisponível.' },
+    });
+    await readyApp.close();
+    await unavailableApp.close();
+  });
 });

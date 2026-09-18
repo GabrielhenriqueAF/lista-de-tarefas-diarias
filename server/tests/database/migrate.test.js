@@ -48,6 +48,28 @@ describe('runMigrations', () => {
 
     expect(locks).toEqual([987654321]);
   });
+
+  it('rolls back an injected migration when its SQL fails', async () => {
+    const statements = [];
+    const failingSql = 'SELECT missing_function();';
+    const client = {
+      query: async (statement) => {
+        statements.push(statement);
+        if (statement === failingSql) throw new Error('forced migration failure');
+        return { rows: [] };
+      },
+    };
+    const migrations = [{
+      version: 999,
+      name: 'fails_after_table',
+      sql: failingSql,
+    }];
+
+    await expect(runMigrations(client, migrations)).rejects.toThrow();
+    expect(statements).toContain('BEGIN');
+    expect(statements).toContain('ROLLBACK');
+    expect(statements).not.toContain('COMMIT');
+  });
 });
 
 describe('withTransaction', () => {
