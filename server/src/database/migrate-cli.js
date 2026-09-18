@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { loadConfig } from '../config.js';
 import { createPool } from './pool.js';
 import { runMigrations } from './migrate.js';
@@ -20,13 +21,20 @@ export async function runMigrationCommand({
     exitCode = 1;
   } finally {
     if (pool) {
-      await pool.end();
+      try {
+        await pool.end();
+      } catch (error) {
+        if (exitCode === 0) {
+          writeError(typeof error?.code === 'string' ? error.code : 'MIGRATION_FAILED');
+          exitCode = 1;
+        }
+      }
     }
   }
 
   return exitCode;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.exitCode = await runMigrationCommand({ writeError: (code) => console.error(`Falha na migração: ${code}`) });
 }
