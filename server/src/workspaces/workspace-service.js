@@ -18,6 +18,7 @@ function requiredText(value) {
 }
 
 const roleRank = { member: 1, owner: 2 };
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createWorkspaceService({ repository }) {
   return {
@@ -33,6 +34,7 @@ export function createWorkspaceService({ repository }) {
     },
 
     async requireMembership({ userId, workspaceId, minimumRole }) {
+      if (typeof workspaceId !== 'string' || !uuidPattern.test(workspaceId)) throw workspaceNotFound();
       const workspace = await repository.findMembership({ userId, workspaceId });
       if (!workspace || !roleRank[minimumRole] || roleRank[workspace.role] < roleRank[minimumRole]) {
         throw workspaceNotFound();

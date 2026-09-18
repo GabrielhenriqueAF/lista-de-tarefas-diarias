@@ -49,6 +49,17 @@ describe('workspace HTTP routes', () => {
     expect(response.json()).toMatchObject({ error: { code: 'WORKSPACE_NOT_FOUND' } });
   });
 
+  it('returns 404 for an authenticated malformed workspace ID', async () => {
+    const ana = await register({ ...registration, email: 'ana@example.test', workspaceName: 'Ana workspace' });
+    const response = await app.inject({
+      method: 'GET', url: '/workspaces/not-a-uuid',
+      headers: { authorization: `Bearer ${ana.token}` }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ error: { code: 'WORKSPACE_NOT_FOUND' } });
+  });
+
   it('makes membership verification available after authenticate', async () => {
     app.get('/membership-contract/:workspaceId', { preHandler: app.authenticate }, async (request) =>
       request.requireWorkspaceMembership(request.params.workspaceId, 'member')
