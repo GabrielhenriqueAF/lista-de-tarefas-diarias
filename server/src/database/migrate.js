@@ -6,11 +6,13 @@ const migrations = [
     file: new URL('./migrations/001_identity_and_workspaces.sql', import.meta.url)
   }
 ];
+const migrationLockKey = 987654321;
 
 export async function runMigrations(client) {
   await client.query('BEGIN');
 
   try {
+    await client.query(`SELECT pg_advisory_xact_lock(${migrationLockKey})`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,

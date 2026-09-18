@@ -1,10 +1,19 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { newDb } from 'pg-mem';
+import { DataType, newDb } from 'pg-mem';
 import { runMigrations } from '../../src/database/migrate.js';
 import { withTransaction } from '../../src/database/pool.js';
 
-function createPgMemClient() {
+function createPgMemClient({ onAdvisoryLock = () => {} } = {}) {
   const db = newDb({ noAstCoverageCheck: true });
+  db.public.registerFunction({
+    name: 'pg_advisory_xact_lock',
+    args: [DataType.integer],
+    returns: DataType.integer,
+    implementation: (key) => {
+      onAdvisoryLock(key);
+      return 1;
+    }
+  });
   const { Client } = db.adapters.createPg();
   return new Client();
 }
@@ -28,6 +37,16 @@ describe('runMigrations', () => {
     });
     expect(await client.query("SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'workspace_members'"))
       .toMatchObject({ rows: [{ name: 'workspace_members' }] });
+  });
+
+  it('acquires a transaction-scoped advisory lock before migrating', async () => {
+    const locks = [];
+    client = createPgMemClient({ onAdvisoryLock: (key) => locks.push(key) });
+    await client.connect();
+
+    await runMigrations(client);
+
+    expect(locks).toEqual([987654321]);
   });
 });
 
