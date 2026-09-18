@@ -3,6 +3,9 @@ import { createPool } from './database/pool.js';
 import { createIdentityRepository } from './identity/identity-repository.js';
 import { createIdentityService } from './identity/identity-service.js';
 import { registerIdentityRoutes } from './identity/identity-routes.js';
+import { createWorkspaceRepository } from './workspaces/workspace-repository.js';
+import { createWorkspaceService } from './workspaces/workspace-service.js';
+import { registerWorkspaceRoutes } from './workspaces/workspace-routes.js';
 
 export function createApp({ config, repositories }) {
   const app = Fastify({ logger: false });
@@ -11,14 +14,19 @@ export function createApp({ config, repositories }) {
   app.decorate('repositories', repositories);
 
   let identityRepository = repositories.identity;
-  if (!identityRepository && config.databaseUrl) {
+  let workspaceRepository = repositories.workspace;
+  if ((!identityRepository || !workspaceRepository) && config.databaseUrl) {
     const pool = createPool(config.databaseUrl);
-    identityRepository = createIdentityRepository(pool);
+    identityRepository ??= createIdentityRepository(pool);
+    workspaceRepository ??= createWorkspaceRepository(pool);
     app.addHook('onClose', async () => pool.end());
   }
   const identityService = createIdentityService({ repository: identityRepository });
   app.decorate('identityService', identityService);
   registerIdentityRoutes(app, identityService);
+  const workspaceService = createWorkspaceService({ repository: workspaceRepository });
+  app.decorate('workspaceService', workspaceService);
+  registerWorkspaceRoutes(app, workspaceService);
 
   app.setErrorHandler((error, request, reply) => {
     if (typeof error.code === 'string' && error.statusCode >= 400 && error.statusCode < 500) {
