@@ -54,4 +54,11 @@ describe('workspace membership', () => {
       .rejects.toMatchObject({ code: 'INVALID_INPUT', statusCode: 400 });
     expect((await pool.query('SELECT * FROM workspaces')).rows).toHaveLength(1);
   });
+
+  it('rejects workspace names longer than 120 characters before persistence', async () => {
+    const ana = await createUserWithWorkspace('Ana workspace');
+    await expect(service.createForUser({ userId: ana.user.id, name: 'x'.repeat(121) }))
+      .rejects.toMatchObject({ code: 'INVALID_INPUT', statusCode: 400 });
+    expect((await pool.query('SELECT * FROM workspaces')).rows).toHaveLength(1);
+  });
 });

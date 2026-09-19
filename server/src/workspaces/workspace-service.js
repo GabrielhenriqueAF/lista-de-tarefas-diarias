@@ -12,9 +12,11 @@ function workspaceNotFound() {
   });
 }
 
-function requiredText(value) {
-  if (typeof value !== 'string' || !value.trim()) throw invalidInput();
-  return value.trim();
+function requiredText(value, maxLength = 120) {
+  if (typeof value !== 'string') throw invalidInput();
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maxLength) throw invalidInput();
+  return normalized;
 }
 
 const roleRank = { member: 1, owner: 2 };

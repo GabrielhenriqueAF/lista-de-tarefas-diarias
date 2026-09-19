@@ -3,6 +3,8 @@ import argon2 from 'argon2';
 import { createAuthWorkLimiter } from './auth-work-limiter.js';
 
 const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
+// Valid Argon2id hash for a non-user value: keeps missing-email login work comparable.
+const missingUserPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$D4qCTt4aTKfoLAbNkGoJ5A$GFzfJ3DKW2OmPFxqEVZ7eBQYBO0+J7cRWlJhKF2+UEU';
 
 export function unauthenticated() {
   return Object.assign(new Error('Sessão inválida ou expirada.'), {
@@ -75,7 +77,10 @@ export function createIdentityService({
     async login(input) {
       const { email, password } = credentials(input);
       const user = await repository.findUserByEmail(email);
-      if (!user || !await authWorkLimiter.run(() => argon2.verify(user.passwordHash, password))) {
+      const passwordMatches = await authWorkLimiter.run(() =>
+        argon2.verify(user?.passwordHash ?? missingUserPasswordHash, password)
+      );
+      if (!user || !passwordMatches) {
         throw unauthenticated();
       }
       const session = newSession(user.id);

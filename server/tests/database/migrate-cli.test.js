@@ -31,10 +31,11 @@ function runCli(env) {
 
 it('closes its pool and returns one after a sanitized migration failure', async () => {
   const end = vi.fn();
+  const release = vi.fn();
   const writeError = vi.fn();
   const result = await runMigrationCommand({
     env: validEnv,
-    poolFactory: () => ({ end }),
+    poolFactory: () => ({ connect: async () => ({ release }), end }),
     migrate: async () => { throw Object.assign(new Error('postgres://secret'), { code: '42P01' }); },
     writeError,
   });
@@ -42,6 +43,27 @@ it('closes its pool and returns one after a sanitized migration failure', async 
   expect(result).toBe(1);
   expect(end).toHaveBeenCalledOnce();
   expect(writeError).toHaveBeenCalledWith('42P01');
+});
+
+it('leases one client for migrations and releases it before closing the pool', async () => {
+  const release = vi.fn();
+  const client = { release };
+  const connect = vi.fn(async () => client);
+  const end = vi.fn();
+  const migrate = vi.fn(async () => {});
+
+  const result = await runMigrationCommand({
+    env: validEnv,
+    poolFactory: () => ({ connect, end }),
+    migrate,
+  });
+
+  expect(result).toBe(0);
+  expect(connect).toHaveBeenCalledOnce();
+  expect(migrate).toHaveBeenCalledWith(client);
+  expect(release).toHaveBeenCalledOnce();
+  expect(end).toHaveBeenCalledOnce();
+  expect(release.mock.invocationCallOrder[0]).toBeLessThan(end.mock.invocationCallOrder[0]);
 });
 
 it('executes the CLI entrypoint and reports invalid configuration safely', async () => {
@@ -57,10 +79,11 @@ it('maps a pool cleanup failure to a sanitized result', async () => {
     throw Object.assign(new Error('postgres://secret'), { code: '57P01' });
   });
   const writeError = vi.fn();
+  const release = vi.fn();
 
   const result = await runMigrationCommand({
     env: validEnv,
-    poolFactory: () => ({ end }),
+    poolFactory: () => ({ connect: async () => ({ release }), end }),
     migrate: async () => {},
     writeError,
   });

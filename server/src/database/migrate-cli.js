@@ -10,16 +10,28 @@ export async function runMigrationCommand({
   writeError = () => {}
 } = {}) {
   let pool;
+  let client;
   let exitCode = 0;
 
   try {
     const config = loadConfig(env);
     pool = poolFactory(config.databaseUrl);
-    await migrate(pool);
+    client = await pool.connect();
+    await migrate(client);
   } catch (error) {
     writeError(typeof error?.code === 'string' ? error.code : 'MIGRATION_FAILED');
     exitCode = 1;
   } finally {
+    if (client) {
+      try {
+        await client.release();
+      } catch (error) {
+        if (exitCode === 0) {
+          writeError(typeof error?.code === 'string' ? error.code : 'MIGRATION_FAILED');
+          exitCode = 1;
+        }
+      }
+    }
     if (pool) {
       try {
         await pool.end();

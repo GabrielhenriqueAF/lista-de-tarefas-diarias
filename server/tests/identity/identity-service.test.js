@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import argon2 from 'argon2';
 import { createIdentityService } from '../../src/identity/identity-service.js';
@@ -141,6 +141,20 @@ describe('identity lifecycle', () => {
     await service.register(registration);
     await expect(limitedService.login(registration)).rejects.toMatchObject({ code: 'AUTH_BUSY' });
     expect((await pool.query('SELECT * FROM sessions')).rows).toHaveLength(1);
+  });
+
+  it('uses limited Argon2 work before rejecting an unknown email', async () => {
+    const authWorkLimiter = {
+      run: vi.fn(async (work) => work())
+    };
+    const protectedService = createIdentityService({
+      repository: createIdentityRepository(pool),
+      authWorkLimiter
+    });
+
+    await expect(protectedService.login({ email: 'missing@example.test', password: registration.password }))
+      .rejects.toMatchObject({ code: 'UNAUTHENTICATED', statusCode: 401 });
+    expect(authWorkLimiter.run).toHaveBeenCalledOnce();
   });
 
   it('uses one transaction for registration and rolls back on membership failure', async () => {
